@@ -1,0 +1,159 @@
+@import url("tokens.css");
+
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration: none; }
+
+/* ---------------- ツールバー（画面表示のみ） ---------------- */
+.toolbar {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 14px clamp(16px, 4vw, 40px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.toolbar .brand { display: flex; align-items: center; gap: 10px; }
+.toolbar .brand-icon { height: 22px; width: 22px; }
+.toolbar .brand-word { font-family: var(--font-display); font-weight: 700; font-size: 0.95rem; color: var(--navy); }
+.toolbar-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--step--1);
+  border-radius: 999px;
+  padding: 9px 18px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--ink);
+}
+.btn.primary { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); }
+.btn:hover { border-color: var(--gold); }
+.hint { font-size: var(--step--1); color: var(--ink-faint); }
+
+/* ---------------- 見積書本体 ---------------- */
+.sheet-wrap { padding: 28px clamp(16px, 4vw, 40px) 60px; }
+.sheet {
+  max-width: 760px;
+  margin: 0 auto;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: clamp(24px, 5vw, 48px);
+}
+
+.sheet-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  border-bottom: 2px solid var(--navy);
+  padding-bottom: 18px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+.sheet-title { font-family: var(--font-display); font-size: 1.7rem; font-weight: 900; color: var(--navy); letter-spacing: 0.1em; }
+.sheet-meta { font-size: var(--step--1); color: var(--ink-soft); text-align: right; }
+.sheet-meta div { margin-bottom: 2px; }
+
+.sheet-parties {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 24px;
+  margin-bottom: 26px;
+}
+.party-block h3 { font-size: var(--step--1); color: var(--ink-faint); margin: 0 0 8px; font-weight: 500; }
+.editable {
+  min-height: 1.4em;
+  border-bottom: 1px dashed var(--border);
+  padding: 4px 2px;
+  outline: none;
+}
+.editable:empty::before { content: attr(data-placeholder); color: var(--ink-faint); }
+.editable:focus { border-color: var(--gold); }
+.client-name { font-size: 1.2rem; font-weight: 700; margin-bottom: 6px; }
+.company-block { font-size: var(--step--1); color: var(--ink-soft); line-height: 1.9; }
+.company-block .name { font-size: 1rem; font-weight: 700; color: var(--ink); }
+
+.total-highlight {
+  background: var(--gold-soft);
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-card);
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 24px;
+}
+.total-highlight .label { font-size: var(--step--1); font-weight: 700; color: var(--navy); }
+.total-highlight .amount { font-family: var(--font-display); font-size: 1.8rem; font-weight: 900; color: var(--navy); }
+
+table.items {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8px;
+  font-size: var(--step--1);
+}
+table.items th {
+  text-align: left;
+  background: var(--bg);
+  border-bottom: 2px solid var(--border);
+  padding: 10px 10px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+table.items td {
+  padding: 10px 10px;
+  border-bottom: 1px solid var(--border);
+}
+table.items td.num, table.items th.num { text-align: right; font-family: var(--font-mono); white-space: nowrap; }
+
+.sum-table { width: 100%; max-width: 320px; margin: 14px 0 0 auto; font-size: var(--step--1); }
+.sum-table tr td { padding: 6px 4px; }
+.sum-table tr td:last-child { text-align: right; font-family: var(--font-mono); }
+.sum-table tr.grand td { border-top: 2px solid var(--navy); font-weight: 900; font-size: 1.05rem; color: var(--navy); padding-top: 10px; }
+
+.notes {
+  margin-top: 30px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+  font-size: var(--step--1);
+  color: var(--ink-soft);
+}
+.notes h3 { font-size: var(--step--1); color: var(--ink-faint); margin: 0 0 8px; font-weight: 500; }
+.notes ul { margin: 0; padding-left: 1.2em; }
+.notes li { margin-bottom: 4px; }
+
+.sheet-foot {
+  margin-top: 30px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+  text-align: center;
+}
+
+/* ---------------- 印刷用 ---------------- */
+@media print {
+  .toolbar, .no-print { display: none !important; }
+  html, body { background: #fff; }
+  .sheet-wrap { padding: 0; }
+  .sheet { border: none; box-shadow: none; border-radius: 0; max-width: none; padding: 0; }
+  .editable:empty::before { content: ""; }
+  .editable { border-bottom: none; }
+  @page { size: A4; margin: 18mm 16mm; }
+}

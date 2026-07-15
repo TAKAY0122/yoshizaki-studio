@@ -1,0 +1,105 @@
+@import url("tokens.css");
+
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  overflow-wrap: break-word;
+}
+
+a { color: inherit; text-decoration: none; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.wrap { max-width: 560px; margin: 0 auto; padding: 0 clamp(16px, 4vw, 40px); }
+
+.brand-line { height: 3px; background: linear-gradient(90deg, var(--gold) 0%, #e6c862 50%, var(--gold) 100%); }
+
+.site-header { background: var(--card); border-bottom: 1px solid var(--border); }
+.site-header .wrap {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 12px; padding-top: 14px; padding-bottom: 14px;
+}
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand-icon { height: 24px; width: 24px; object-fit: contain; flex: none; display: block; }
+.brand-word { font-family: var(--font-display); font-weight: 700; font-size: 0.98rem; color: var(--navy); white-space: nowrap; }
+.brand-word em { font-style: normal; font-weight: 400; color: var(--ink-soft); margin-left: 2px; }
+.brand .pill {
+  font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+  color: var(--gold-ink); background: var(--gold-soft); padding: 4px 10px; border-radius: 999px; white-space: nowrap;
+}
+.back-link { font-size: var(--step--1); color: var(--ink-soft); white-space: nowrap; }
+.back-link:hover { color: var(--ink); }
+
+.hero { padding: clamp(24px, 4vw, 40px) 0 clamp(16px, 3vw, 24px); }
+.eyebrow { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.1em; color: var(--ink-faint); text-transform: uppercase; margin: 0 0 10px; }
+.hero h1 { font-family: var(--font-display); font-weight: 700; font-size: var(--step-3); color: var(--navy); margin: 0 0 12px; }
+.hero p.lede { color: var(--ink-soft); margin: 0; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 24px 22px;
+  margin-bottom: 40px;
+}
+
+.f-row { margin-bottom: 16px; }
+.f-label { display: block; font-size: var(--step--1); font-weight: 700; margin-bottom: 6px; }
+.f-label .req { display: inline-block; font-size: 10px; font-weight: 700; background: var(--gold); color: var(--gold-ink); padding: 2px 6px; border-radius: 6px; margin-left: 6px; }
+input[type="text"], input[type="email"] {
+  width: 100%; font-family: var(--font-body); font-size: var(--step-0); color: var(--ink);
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+}
+input:focus { outline: none; border-color: var(--gold); background: var(--card); }
+
+.lookup-error { color: var(--danger); font-size: var(--step--1); margin-bottom: 10px; min-height: 1.2em; }
+.lookup-btn, .lookup-again-btn {
+  width: 100%;
+  font-family: var(--font-display); font-weight: 700; font-size: var(--step-0);
+  background: var(--gold); color: var(--gold-ink);
+  border: none; padding: 12px; border-radius: 999px; cursor: pointer;
+}
+.lookup-again-btn { margin-top: 18px; background: var(--bg); color: var(--ink); border: 1px solid var(--border); }
+
+#status-category { font-family: var(--font-display); font-size: var(--step-1); margin: 0 0 18px; }
+
+.status-track { display: flex; align-items: center; gap: 0; margin-bottom: 22px; flex-wrap: wrap; }
+.status-track .pt {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; min-width: 60px; text-align: center;
+}
+.status-track .pt .dot { width: 20px; height: 20px; border-radius: 50%; background: var(--border); }
+.status-track .pt.is-done .dot { background: var(--navy); }
+.status-track .pt.is-current .dot { background: var(--gold); }
+.status-track .pt span.label { font-size: 11px; color: var(--ink-faint); }
+.status-track .pt.is-current span.label, .status-track .pt.is-done span.label { color: var(--ink); font-weight: 700; }
+.status-track .line { flex: 1; height: 2px; background: var(--border); margin-bottom: 22px; min-width: 12px; }
+.status-track .line.is-done { background: var(--navy); }
+
+.status-meta { margin: 0; }
+.status-meta dt { font-size: var(--step--1); color: var(--ink-faint); margin-top: 10px; }
+.status-meta dd { margin: 2px 0 0; font-size: var(--step-0); font-weight: 700; }
+
+#status-quote-link { margin-top: 18px; }
+#status-quote-link a {
+  display: inline-block; font-size: var(--step--1); font-weight: 700; color: var(--gold-ink);
+  border: 1px solid var(--gold); padding: 8px 16px; border-radius: 999px;
+}
+
+footer.site-footer { background: var(--card); border-top: 1px solid var(--border); color: var(--ink-faint); padding: 20px clamp(16px, 4vw, 40px); font-size: var(--step--1); }
+
+/* ---------------- 狭幅スマホ向け調整（変な改行の是正） ---------------- */
+@media (max-width: 420px) {
+  .hero h1 { font-size: 1.5rem; line-height: 1.4; }
+  .brand-word { font-size: 0.85rem; }
+  .brand .pill { font-size: 0.62rem; padding: 3px 8px; }
+  .status-track .pt { min-width: 50px; }
+  .status-track .pt span.label { font-size: 10px; }
+}

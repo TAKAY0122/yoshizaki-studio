@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light" />
+<title>見積もりシミュレーター | Aster Systems</title>
+<meta name="description" content="制作カテゴリ・仕様を選んで概算費用をその場で算出。見積もりコードをヒアリングシートに引き継ぎできます。" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/estimate.css" />
+</head>
+<body>
+
+  <div class="brand-line"></div>
+  <header class="site-header">
+    <div class="wrap">
+      <div class="brand">
+        <img src="/img/aster-icon.png" alt="" class="brand-icon" />
+        <span class="brand-word">Aster<em>Systems</em></span>
+        <span class="pill">ESTIMATE</span>
+      </div>
+      <a class="back-link" href="/portal.html">← ポータルへ戻る</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero wrap">
+      <p class="eyebrow">Estimate Simulator</p>
+      <h1>お見積もりシミュレーター</h1>
+      <p class="lede">制作カテゴリと仕様を選ぶだけで、概算費用をその場で算出します。算出後に発行される見積もりコードは、各ヒアリングシートにそのまま引き継げます。</p>
+      <div class="steps" id="steps">
+        <span class="step is-active" data-step="1"><i>1</i>カテゴリ選択</span>
+        <span class="step" data-step="2"><i>2</i>仕様選択</span>
+        <span class="step" data-step="3"><i>3</i>見積もり発行</span>
+      </div>
+    </section>
+
+    <section class="ai-suggest wrap">
+      <div class="ai-card">
+        <div class="ai-head">
+          <span class="ai-badge">💡</span>
+          <div>
+            <h2>おすすめカテゴリを見る</h2>
+            <p>やりたいことを文章で入力すると、近いカテゴリをご提案します（カテゴリ選択の目安としてご利用ください）。</p>
+          </div>
+        </div>
+        <textarea id="ai-description" rows="2" placeholder="例：飲食店の予約ができるコーポレートサイトを作りたい"></textarea>
+        <div class="ai-actions">
+          <button type="button" id="ai-suggest-btn">✨ おすすめを見る</button>
+          <span id="ai-status"></span>
+        </div>
+        <div id="ai-result" hidden></div>
+      </div>
+    </section>
+
+    <div class="estimate-layout wrap">
+      <div class="estimate-main">
+        <section class="category-section">
+          <div id="category-grid"></div>
+        </section>
+
+        <section id="options-section" hidden>
+          <div class="section-head">
+            <h2>仕様を選択</h2>
+          </div>
+          <div id="options-inner"></div>
+        </section>
+      </div>
+
+      <aside id="summary" hidden>
+        <button type="button" id="summary-toggle" class="summary-toggle">
+          <span class="summary-top">
+            <h4>概算費用（目安）</h4>
+            <span id="summary-total"></span>
+          </span>
+          <span class="summary-toggle-icon">▲</span>
+        </button>
+        <div id="summary-body" class="summary-body">
+          <div id="summary-days" class="summary-days"></div>
+          <ul id="summary-breakdown"></ul>
+          <div id="summary-recurring"></div>
+
+          <div class="contact-fields">
+            <label class="f-label" for="contact-name">お名前<span class="req">必須</span></label>
+            <input type="text" id="contact-name" placeholder="山田 太郎" />
+            <label class="f-label" for="contact-email">メールアドレス<span class="req">必須</span></label>
+            <input type="email" id="contact-email" placeholder="example@example.com" />
+            <p class="contact-note">この内容と御見積書PDFのリンクを、ご入力のメールアドレス宛にお送りします。</p>
+          </div>
+
+          <div class="summary-actions">
+            <button type="button" id="issue-code-btn">この内容で見積書を受け取る</button>
+          </div>
+          <div id="send-status" class="send-status" hidden></div>
+          <div id="code-result" hidden>
+            <span id="code-value"></span>
+            <button type="button" id="copy-code-btn">コードをコピー</button>
+            <a id="quote-link" href="#" target="_blank" rel="noopener">📄 御見積書PDFを見る</a>
+            <a id="hearing-link" href="#">ヒアリングシートへ進む →</a>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>Aster Systems — Creative &amp; System Production ／ 表示金額はすべて概算です。正式なお見積もりはヒアリング内容をもとに別途ご提示します。</span>
+    </div>
+  </footer>
+
+  <script src="/js/pricing-config.js"></script>
+  <script src="/js/estimate.js"></script>
+</body>
+</html>

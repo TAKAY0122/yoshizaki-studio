@@ -1,0 +1,147 @@
+# Aster Systems / ty-mitumori
+
+## 業務フロー（今回整理した正しい流れ）
+
+```
+① お客様がポータル(/portal)から見積もりシミュレーター(/estimate.html)へ
+② カテゴリ・プランを選択 → お名前・メールアドレスを入力して「この内容で見積書を受け取る」
+   → お客様 と 社内(COMPANY_NOTIFY_EMAIL) の両方にメールで
+     見積もり内容 + 御見積書PDFへのリンク が届く
+③ お客様がヒアリングシートに記入して送信（見積もりコードは自動で引き継がれる）
+④ 社内は管理者ダッシュボード(/admin)でヒアリング内容を確認し、正式な提案・対応を行う
+```
+
+※以前の実装は「見積もり→ヒアリング→DB保存のみ」でメール通知がありませんでした。
+　今回、②の時点でお客様・社内の両方にメールが届くようにしました。
+
+## 実装状況（全機能）
+- [x] ポータル（`public/portal.html`）— サイトの起点
+- [x] 見積もりシミュレーター（`public/estimate.html`）— 人日単価×日数、おすすめカテゴリ提案、見積書メール送信
+- [x] ヒアリングシート5種（`hearing*.html`）— 記入内容チェック機能付き
+- [x] 見積書PDF（`public/quote.html`）— ブラウザ印刷でPDF保存
+- [x] 管理者ダッシュボード（`public/admin.html`）— 隠しアクセス経由のみ
+- [x] 顧客マイページ（`public/mypage.html`）
+
+## サイト構成・アクセス経路
+- `/`, `/portal` → `/portal.html`（メインの入口）
+- `/estimate` → `/estimate.html`（見積もりシミュレーター）
+- 見積もりシミュレーターは以前 `index.html` という名前だったため、Cloudflareの
+  静的配信の仕様上「/」で自動的にこちらが表示されてしまう構造的なバグがありました。
+  `estimate.html` にリネームし、`wrangler.toml` に `run_worker_first = true` を追加、
+  常に `src/index.ts` のルーティング（`/` → `/portal.html`）を経由するよう修正済みです。
+
+## 管理者ダッシュボードへのアクセス（お客様には非公開）
+
+**通常のナビゲーションには一切表示されません。** 以下のいずれかでアクセスしてください。
+
+1. **直接URLアクセス**：`https://<あなたのドメイン>/admin`
+2. **隠しトリガー**：ポータル(`/portal`)のフッターにある会社名表記
+   「Aster Systems — Creative & System Production」を**素早く5回クリック/タップ**すると
+   `/admin` に遷移します（2.5秒以内に5回）
+
+### 初回の管理者アカウント作成
+1. `/admin` にアクセス（管理者が1人もいない場合のみ、自動でセットアップ画面が出ます）
+2. 名前・メールアドレス・パスワード（8文字以上）を入力して作成
+3. 以後は通常のログイン画面になります（2人目以降のアカウントは現状SQLで直接追加する必要があります。UIは未実装）
+
+パスワードは PBKDF2-SHA256（10万回）でハッシュ化してD1に保存しています。平文保存はしていません。
+
+## 「AI」機能について（お客様には非表示）
+- 見積もりシミュレーターの「おすすめカテゴリを見る」、ヒアリングシートの「記入内容をチェックする」は
+  内部でClaude APIを使っていますが、**画面上の文言からは「AI」という単語を意図的に外しています。**
+- 実装上は `src/index.ts` の `/api/ai/suggest-estimate`、`/api/ai/hearing-assist` がAI呼び出しを行っています（エンドポイント名にはaiが残っていますが、これはお客様の目には触れません）。
+
+## 最終デプロイ手順（まとめ）
+
+```bash
+# 1. 依存関係インストール
+npm install
+
+# 2. D1データベース作成（初回のみ）
+npx wrangler d1 create ty-mitumori-db
+# → 出力された database_id を wrangler.toml の [[d1_databases]] に貼り付ける
+
+# 3. スキーマ適用
+npx wrangler d1 execute ty-mitumori-db --remote --file=db/schema.sql
+
+# 4. シークレット設定
+npx wrangler secret put ANTHROPIC_API_KEY   # おすすめカテゴリ・記入チェック機能用
+npx wrangler secret put RESEND_API_KEY      # 見積書メール送信用
+
+# 5. wrangler.toml の [vars] を編集（メール送信元・社内通知先）
+#   MAIL_FROM = "quotes@あなたのドメイン"      ※Resendで送信ドメイン認証が必要
+#   COMPANY_NOTIFY_EMAIL = "info@あなたのドメイン"
+
+# 6. 型チェック
+npx tsc --noEmit
+
+# 7. デプロイ
+npm run deploy
+```
+
+## Resend（メール送信）のセットアップ
+1. https://resend.com でアカウント作成
+2. 「Domains」から送信に使うドメイン（例：`aster-systems.jp`）を追加し、
+   表示されるDNSレコード（SPF/DKIM）をドメインのDNS設定に追加して認証を完了させる
+   （認証が済むまでは `onboarding@resend.dev` などResend提供の仮アドレスでテスト送信は可能）
+3. 「API Keys」でキーを発行 → `npx wrangler secret put RESEND_API_KEY` で設定
+4. `wrangler.toml` の `MAIL_FROM` を認証済みドメインのアドレスに変更
+
+## Gitとの連携
+このプロジェクトをGitHub等で管理し、Cloudflareと連携する方法は主に2通りあります。
+
+### 方法A：Cloudflare Workers Builds（GUIから連携・おすすめ）
+1. GitHubにこのフォルダの中身をpush（リポジトリ作成 → `git init` → `git add .` → `git commit` → `git push`）
+2. Cloudflareダッシュボード → Workers & Pages → 該当のWorker → 「Settings」→「Build」
+3. 「Connect to Git」からGitHubリポジトリを選択し、ブランチ（例：`main`）を指定
+4. 以後はそのブランチにpushするたびに自動でビルド・デプロイされます
+5. シークレット（ANTHROPIC_API_KEY等）はダッシュボードの「Settings」→「Variables and Secrets」からも設定可能です
+
+### 方法B：GitHub Actionsで `wrangler deploy` を実行
+リポジトリに `.github/workflows/deploy.yml` を追加し、Cloudflareの
+API Token（`CLOUDFLARE_API_TOKEN`）をGitHub Secretsに設定してpush時に
+`npx wrangler deploy` を実行させる方法です。細かい設定が必要な場合はお知らせください。
+
+**注意**：`.gitignore` で `node_modules/`・`.wrangler/`・`.dev.vars` は除外済みです。
+シークレット類（APIキー）は**絶対にコードにもGitにも含めない**でください。
+
+## 独自ドメインの設定
+1. ドメインをCloudflareに追加していない場合は、Cloudflareダッシュボードで
+   「ドメインを追加」からネームサーバーをCloudflareに向ける
+2. Workers & Pages → 該当のWorker →「Settings」→「Domains & Routes」
+3. 「Add」→「Custom Domain」で使いたいドメイン／サブドメイン
+   （例：`mitsumori.aster-systems.jp`）を入力
+4. 自動的にDNSレコードとSSL証明書が設定され、数分で反映されます
+5. 反映後はそのドメインで `https://mitsumori.aster-systems.jp/portal` のようにアクセスできます
+
+## 構成
+
+| パス | 内容 |
+|---|---|
+| `public/portal.html` + `css/portal.css` | ポータル（メインの入口） |
+| `public/estimate.html` + `css/estimate.css` | 見積もりシミュレーター（旧index.html） |
+| `public/hearing*.html` + `css/hearing.css` | ヒアリングシート5種 |
+| `public/quote.html` + `css/quote.css` + `js/quote.js` | 見積書（印刷/PDF保存） |
+| `public/admin.html` + `css/admin.css` + `js/admin.js` | 管理者ダッシュボード（隠しアクセスのみ） |
+| `public/mypage.html` + `css/mypage.css` + `js/mypage.js` | 顧客マイページ |
+| `public/js/pricing-config.js` | 料金ロジック設定（人日単価×日数） |
+| `public/js/hearing-config.js` | ヒアリング項目設定（カテゴリ別） |
+| `src/index.ts` | Cloudflare Workers（Hono）。API・認証・メール送信・AI連携・静的配信 |
+| `db/schema.sql` | D1スキーマ |
+| `tsconfig.json` | 型チェック用設定（`npx tsc --noEmit`） |
+
+## 料金ロジック（人日ベース）
+`public/js/pricing-config.js` の各プラン・オプションは
+`人日単価（rate）× 稼働日数（days）＝ 金額（price）` で構成しています。
+カテゴリ別標準人日単価：Web ¥45,000 / 動画 ¥40,000 / アプリ ¥65,000 / デザイン ¥35,000 / システム ¥70,000。
+
+## 認証について
+- パスワードは PBKDF2-SHA256（10万回）でハッシュ化しD1に保存。
+- セッションはCookie（httpOnly, 7日間有効）+ D1の `admin_sessions` テーブルで管理。
+- 管理者アカウントの追加・削除UIは未実装です。
+
+## 注意
+- Googleフォント（Noto Sans JP / JetBrains Mono）を使用しているため、インターネット接続がある環境でご確認ください。
+- `/api/ai/*` は未認証の一般公開エンドポイントです。公開後はCloudflareダッシュボードの「Rate Limiting Rules」でIP単位のレート制限を追加することを推奨します。
+- `CATEGORY_INFO`（`src/index.ts`）は `pricing-config.js` と手動同期が必要です。プラン構成変更時はあわせて更新してください。
+- `wrangler.toml` の `database_id` は実際に `wrangler d1 create` で発行されたIDに置き換え済みかご確認ください。

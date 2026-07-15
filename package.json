@@ -1,0 +1,17 @@
+{
+  "name": "ty-mitumori",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0",
+    "@cloudflare/workers-types": "^4.20250101.0",
+    "typescript": "^5.5.0"
+  }
+}

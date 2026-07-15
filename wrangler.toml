@@ -1,0 +1,40 @@
+name = "ty-mitumori"
+main = "src/index.ts"
+compatibility_date = "2026-07-01"
+
+# 静的アセット（/public 配下）を配信
+# run_worker_first = true により、"/" などのルーティングは必ず src/index.ts の
+# Hono ルート（ポータルへのリダイレクト等）を経由する（静的ファイルの自動配信より優先）
+# html_handling = "none" が重要：Cloudflareのデフォルトでは "/portal.html" のような
+# リクエストを自動的に "/portal" へリダイレクトする「クリーンURL化」機能が働き、
+# これが src/index.ts 側の "/portal" → "/portal.html" リダイレクトと衝突して
+# 無限リダイレクトループ（ERR_TOO_MANY_REDIRECTS）を起こしていた。無効化することで解消。
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "404-page"
+run_worker_first = true
+html_handling = "none"
+
+# D1データベース（案件・見積もり・ヒアリング・管理者アカウント）
+# 本番デプロイ前に以下を実行し、database_id を発行されたIDに置き換えてください：
+#   npx wrangler d1 create ty-mitumori-db
+#   npx wrangler d1 execute ty-mitumori-db --remote --file=db/schema.sql
+[[d1_databases]]
+binding = "DB"
+database_name = "ty-mitumori-db"
+database_id = "a789626d-c648-4234-b394-8f6f6a19f9a9"
+
+# AI見積もり提案・ヒアリング補助機能に使用（Anthropic API）
+# シークレットとして設定してください（wrangler.toml には書かない）：
+#   npx wrangler secret put ANTHROPIC_API_KEY
+# 未設定の場合、AI機能は 503 を返しますが、その他の機能には影響しません。
+
+# 見積書メール送信に使用（Resend）
+#   npx wrangler secret put RESEND_API_KEY
+# 未設定の場合、メール送信は 503 を返しますが、見積もりコード自体は発行されます。
+
+# 送信元アドレス・社内通知先アドレス（Resendで送信ドメイン認証済みのものを指定）
+[vars]
+MAIL_FROM = "t.yoshizaki.taka@gmail.com"
+COMPANY_NOTIFY_EMAIL = "t.yoshizaki.taka@gmail.com"

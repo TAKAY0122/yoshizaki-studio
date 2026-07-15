@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light" />
+<meta name="robots" content="noindex" />
+<title>管理者ダッシュボード | Aster Systems</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body>
+
+  <div class="brand-line"></div>
+
+  <!-- ログイン画面 -->
+  <div id="login-view">
+    <div class="login-card">
+      <div class="login-brand">
+        <img src="/img/aster-icon.png" alt="" />
+        <span>Aster Systems</span>
+      </div>
+      <h1>管理者ログイン</h1>
+      <form id="login-form">
+        <label for="login-email">メールアドレス</label>
+        <input type="email" id="login-email" required />
+        <label for="login-password">パスワード</label>
+        <input type="password" id="login-password" required />
+        <div class="login-error" id="login-error"></div>
+        <button type="submit" class="login-btn">ログイン</button>
+      </form>
+      <p class="login-note" id="setup-note" hidden>
+        初回のみ：管理者アカウントがまだ作成されていません。<br />
+        <a href="#" id="setup-link">こちらから最初の管理者アカウントを作成</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- 初回セットアップ画面 -->
+  <div id="setup-view" class="centered-screen" style="display:none">
+    <div class="login-card">
+      <div class="login-brand">
+        <img src="/img/aster-icon.png" alt="" />
+        <span>Aster Systems</span>
+      </div>
+      <h1>初回セットアップ</h1>
+      <form id="setup-form">
+        <label for="setup-name">お名前</label>
+        <input type="text" id="setup-name" required />
+        <label for="setup-email">メールアドレス</label>
+        <input type="email" id="setup-email" required />
+        <label for="setup-password">パスワード（8文字以上）</label>
+        <input type="password" id="setup-password" required minlength="8" />
+        <div class="login-error" id="setup-error"></div>
+        <button type="submit" class="login-btn">作成してログイン</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ダッシュボード -->
+  <div id="dashboard-view">
+    <header class="dash-header">
+      <div class="brand">
+        <img src="/img/aster-icon.png" alt="" />
+        <span>管理者ダッシュボード</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <span class="who" id="who-label"></span>
+        <button class="logout-btn" id="logout-btn">ログアウト</button>
+      </div>
+    </header>
+
+    <div class="dash-wrap">
+      <div class="dash-toolbar">
+        <span class="status-filter is-active" data-status="">すべて</span>
+        <span class="status-filter" data-status="new">新規受付</span>
+        <span class="status-filter" data-status="hearing">ヒアリング中</span>
+        <span class="status-filter" data-status="quoted">見積もり提示済み</span>
+        <span class="status-filter" data-status="won">受注</span>
+        <span class="status-filter" data-status="lost">失注</span>
+        <input type="text" class="search-input" id="search-input" placeholder="顧客名・メールで検索" />
+      </div>
+
+      <table class="case-table">
+        <thead>
+          <tr>
+            <th>受付日時</th>
+            <th>カテゴリ</th>
+            <th>顧客名</th>
+            <th>メール</th>
+            <th>ステータス</th>
+          </tr>
+        </thead>
+        <tbody id="case-tbody">
+          <tr class="empty-row"><td colspan="5">読み込み中…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 案件詳細モーダル -->
+  <div id="case-modal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <h2 id="modal-title"></h2>
+          <div class="who" id="modal-sub"></div>
+        </div>
+        <button class="modal-close" id="modal-close">&times;</button>
+      </div>
+
+      <div class="modal-section">
+        <h3>ヒアリング回答</h3>
+        <dl class="kv-list" id="modal-answers"></dl>
+      </div>
+
+      <div class="modal-section" id="modal-estimate-section" hidden>
+        <h3>見積もり内容</h3>
+        <div id="modal-estimate"></div>
+      </div>
+
+      <div class="modal-section">
+        <h3>ステータス変更</h3>
+        <div class="status-row">
+          <select class="status-select" id="modal-status">
+            <option value="new">新規受付</option>
+            <option value="hearing">ヒアリング中</option>
+            <option value="quoted">見積もり提示済み</option>
+            <option value="won">受注</option>
+            <option value="lost">失注</option>
+          </select>
+          <button class="save-btn" id="modal-save">保存</button>
+        </div>
+        <textarea class="note-input" id="modal-note" placeholder="対応メモ（任意）" style="margin-top:10px"></textarea>
+      </div>
+
+      <div class="modal-section">
+        <h3>対応履歴</h3>
+        <ul class="log-list" id="modal-logs"></ul>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/hearing-config.js"></script>
+  <script src="/js/pricing-config.js"></script>
+  <script src="/js/admin.js"></script>
+</body>
+</html>

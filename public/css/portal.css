@@ -1,0 +1,267 @@
+@import url("tokens.css");
+
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  overflow-wrap: break-word;
+}
+
+a { color: inherit; text-decoration: none; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 4vw, 40px);
+}
+
+/* ---------------- Brand line ---------------- */
+.brand-line {
+  height: 3px;
+  background: linear-gradient(90deg, var(--gold) 0%, #e6c862 50%, var(--gold) 100%);
+}
+
+/* ---------------- Header ---------------- */
+.site-header {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+.site-header .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand-icon { height: 28px; width: 28px; object-fit: contain; flex: none; display: block; }
+.brand-word {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--navy);
+  white-space: nowrap;
+  line-height: 1;
+}
+.brand-word em { font-style: normal; font-weight: 400; color: var(--ink-soft); margin-left: 2px; }
+.brand .pill {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--gold-ink);
+  background: var(--gold-soft);
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.header-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--ink-soft);
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  border-radius: 8px;
+  white-space: nowrap;
+  transition: border-color 0.2s var(--ease-studio), color 0.2s var(--ease-studio);
+}
+.header-link:hover { border-color: var(--gold); color: var(--ink); }
+
+/* ---------------- Hero ---------------- */
+.hero { padding: clamp(28px, 5vw, 48px) 0 clamp(20px, 3vw, 32px); }
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  margin: 0 0 12px;
+}
+
+.hero h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--step-4);
+  line-height: 1.4;
+  margin: 0 0 14px;
+  color: var(--navy);
+}
+
+.hero p.lede {
+  font-size: var(--step-0);
+  color: var(--ink-soft);
+  max-width: 52ch;
+  margin: 0 0 22px;
+}
+
+.trust-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.trust-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--step--1);
+  color: var(--ink-soft);
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 7px 13px;
+  border-radius: 999px;
+}
+
+/* ---------------- Section head ---------------- */
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 8px 0 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.section-head h2 {
+  font-family: var(--font-display);
+  font-size: var(--step-2);
+  margin: 0;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.section-head .count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+}
+
+/* ---------------- Tool grid ---------------- */
+.tools { padding-bottom: clamp(48px, 6vw, 72px); }
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+@media (max-width: 880px) { .tool-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .tool-grid { grid-template-columns: 1fr; } }
+
+.tool-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 200px;
+  transition: box-shadow 0.2s var(--ease-studio), border-color 0.2s var(--ease-studio), transform 0.2s var(--ease-studio);
+}
+.tool-card:hover {
+  box-shadow: var(--shadow-lift);
+  border-color: var(--gold);
+  transform: translateY(-2px);
+}
+.tool-card.featured { border-color: var(--gold); background: var(--gold-soft); position: relative; overflow: hidden; }
+.ribbon {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: var(--gold);
+  color: var(--gold-ink);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 5px 14px;
+  border-radius: 0 var(--radius-card) 0 10px;
+}
+
+.icon-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-badge);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  flex: none;
+  transition: transform 0.25s var(--ease-studio);
+}
+.tool-card:hover .icon-badge { transform: scale(1.08) rotate(-3deg); }
+
+.tool-card h3 {
+  font-family: var(--font-display);
+  font-size: var(--step-1);
+  margin: 0;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.tool-card p {
+  margin: 0;
+  font-size: var(--step--1);
+  color: var(--ink-soft);
+  flex: 1;
+}
+
+.tool-open {
+  margin-top: 2px;
+  font-size: var(--step--1);
+  font-weight: 700;
+  color: var(--gold-ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.tool-open .arrow { transition: transform 0.2s var(--ease-studio); }
+.tool-card:hover .tool-open .arrow { transform: translateX(4px); }
+
+/* ---------------- Footer ---------------- */
+.site-footer {
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  color: var(--ink-faint);
+  padding: 22px clamp(16px, 4vw, 40px);
+}
+.site-footer .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+}
+.site-footer .foot-brand { font-size: var(--step--1); }
+.site-footer .foot-links {
+  display: flex;
+  gap: 18px;
+  font-size: var(--step--1);
+}
+.site-footer a:hover { color: var(--gold-ink); }
+
+/* ---------------- 狭幅スマホ向け調整（変な改行の是正） ---------------- */
+@media (max-width: 420px) {
+  .hero h1 { font-size: 1.7rem; line-height: 1.4; }
+  .eyebrow { font-size: 0.68rem; }
+  .brand-word { font-size: 0.85rem; }
+  .brand .pill { font-size: 0.62rem; padding: 3px 8px; }
+  .trust-row span { font-size: 0.72rem; padding: 6px 10px; }
+  .tool-card h3 { font-size: 0.98rem; }
+  .section-head h2 { font-size: 1.15rem; }
+}

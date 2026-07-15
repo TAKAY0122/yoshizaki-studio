@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light" />
+<title>御見積書 | Aster Systems</title>
+<meta name="robots" content="noindex" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/quote.css" />
+</head>
+<body>
+
+  <div class="toolbar no-print">
+    <div class="brand">
+      <img src="/img/aster-icon.png" alt="" class="brand-icon" />
+      <span class="brand-word">御見積書プレビュー</span>
+    </div>
+    <div class="toolbar-actions">
+      <span class="hint">宛名・備考は下の書類上で直接編集できます</span>
+      <button type="button" id="print-btn" class="btn primary">🖨 印刷 / PDFとして保存</button>
+    </div>
+  </div>
+
+  <div class="sheet-wrap">
+
+    <div id="quote-error" class="sheet" hidden>
+      <p>見積もりコードが見つかりませんでした。お手数ですが、見積もりシミュレーターから再度お進みください。</p>
+      <p><a href="/estimate.html" class="btn primary">見積もりシミュレーターへ</a></p>
+    </div>
+
+    <div id="sheet" class="sheet">
+      <div class="sheet-head">
+        <div class="sheet-title">御見積書</div>
+        <div class="sheet-meta">
+          <div>見積番号：<span id="quote-no"></span></div>
+          <div>合計工数：<span id="total-days"></span></div>
+          <div>発行日：<span id="issue-date"></span></div>
+          <div>有効期限：<span id="valid-date"></span></div>
+        </div>
+      </div>
+
+      <div class="sheet-parties">
+        <div class="party-block">
+          <h3>御宛先</h3>
+          <div class="client-name editable" contenteditable="true" data-placeholder="お客様名・貴社名を入力"></div>
+          <div class="editable" contenteditable="true" data-placeholder="ご担当者名（任意）"></div>
+          <div style="margin-top:10px;">下記の通りお見積り申し上げます。</div>
+        </div>
+        <div class="party-block company-block">
+          <h3>発行元</h3>
+          <div class="name">株式会社Aster Systems</div>
+          <div class="editable" contenteditable="true" data-placeholder="住所を入力（未定の場合は空欄可）"></div>
+          <div class="editable" contenteditable="true" data-placeholder="TEL / Email（任意）"></div>
+        </div>
+      </div>
+
+      <div class="total-highlight">
+        <span class="label">御見積金額（税込）</span>
+        <span class="amount" id="total-amount"></span>
+      </div>
+
+      <table class="items">
+        <thead>
+          <tr>
+            <th>品目</th>
+            <th class="num">人日数</th>
+            <th class="num">人日単価</th>
+            <th class="num">金額</th>
+          </tr>
+        </thead>
+        <tbody id="items-body"></tbody>
+      </table>
+
+      <table class="sum-table">
+        <tr><td>小計</td><td id="subtotal"></td></tr>
+        <tr><td>消費税（10%）</td><td id="tax"></td></tr>
+        <tr class="grand"><td>合計金額</td><td id="grand-total"></td></tr>
+      </table>
+
+      <div class="notes">
+        <h3>備考</h3>
+        <ul>
+          <li>本見積書は「<span id="category-label"></span>」カテゴリの概算費用です。詳細ヒアリング後、内容に応じて金額が変動する場合があります。</li>
+          <li>有効期限：発行日より30日間</li>
+          <li class="editable" contenteditable="true" data-placeholder="その他の備考があればここに入力"></li>
+        </ul>
+      </div>
+
+      <div id="recurring-note" class="notes" hidden></div>
+
+      <div class="sheet-foot">Aster Systems — Creative &amp; System Production</div>
+    </div>
+
+  </div>
+
+  <script src="/js/pricing-config.js"></script>
+  <script src="/js/quote.js"></script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light" />
+<meta name="robots" content="noindex" />
+<title>マイページ | Aster Systems</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/mypage.css" />
+</head>
+<body>
+
+  <div class="brand-line"></div>
+  <header class="site-header">
+    <div class="wrap">
+      <div class="brand">
+        <img src="/img/aster-icon.png" alt="" class="brand-icon" />
+        <span class="brand-word">Aster<em>Systems</em></span>
+        <span class="pill">MYPAGE</span>
+      </div>
+      <a class="back-link" href="/portal.html">← ポータルへ戻る</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <p class="eyebrow">My Page</p>
+      <h1>ご依頼状況の確認</h1>
+      <p class="lede">ヒアリングシート送信後にお渡しした受付番号と、ご入力いただいたメールアドレスで、対応状況をご確認いただけます。</p>
+    </section>
+
+    <div id="lookup-card" class="card">
+      <div class="f-row">
+        <label class="f-label" for="lookup-id">受付番号<span class="req">必須</span></label>
+        <input type="text" id="lookup-id" placeholder="例：HR-20260714-AB12" />
+      </div>
+      <div class="f-row">
+        <label class="f-label" for="lookup-email">メールアドレス<span class="req">必須</span></label>
+        <input type="email" id="lookup-email" placeholder="ご入力いただいたメールアドレス" />
+      </div>
+      <div id="lookup-error" class="lookup-error"></div>
+      <button type="button" id="lookup-btn" class="lookup-btn">確認する</button>
+    </div>
+
+    <div id="status-card" class="card" hidden>
+      <h2 id="status-category"></h2>
+      <div class="status-track" id="status-track"></div>
+      <dl class="status-meta">
+        <dt>受付日時</dt><dd id="status-created"></dd>
+        <dt>最終更新</dt><dd id="status-updated"></dd>
+        <dt>概算見積金額</dt><dd id="status-estimate"></dd>
+      </dl>
+      <div id="status-quote-link"></div>
+      <button type="button" id="lookup-again-btn" class="lookup-again-btn">別の受付番号で確認する</button>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">Aster Systems &mdash; Creative &amp; System Production</div>
+  </footer>
+
+  <script src="/js/hearing-config.js"></script>
+  <script src="/js/mypage.js"></script>
+</body>
+</html>

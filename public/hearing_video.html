@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light" />
+<title>動画編集・映像制作ヒアリングシート | Aster Systems</title>
+<meta name="description" content="カット編集・テロップ・モーション・SNS動画などの映像制作ヒアリング。" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/hearing.css" />
+</head>
+<body>
+
+  <div class="brand-line"></div>
+  <header class="site-header">
+    <div class="wrap">
+      <div class="brand">
+        <img src="/img/aster-icon.png" alt="" class="brand-icon" />
+        <span class="brand-word">Aster<em>Systems</em></span>
+        <span class="pill">HEARING</span>
+      </div>
+      <a class="back-link" href="/portal.html">&larr; ポータルへ戻る</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <div class="hero-head">
+        <span class="hero-badge" id="hearing-badge"></span>
+        <h1 id="hearing-title"></h1>
+      </div>
+      <p class="lede" id="hearing-lede"></p>
+      <div id="estimate-banner" hidden></div>
+    </section>
+
+    <form class="hearing-form" id="hearing-form" novalidate>
+      <div id="form-sections"></div>
+
+      <div class="ai-assist">
+        <button type="button" id="ai-assist-btn">📝 記入内容をチェックする</button>
+        <div id="ai-assist-result" hidden></div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="submit-btn">この内容で送信する</button>
+      </div>
+    </form>
+
+    <div id="success-panel" hidden>
+      <div class="check">&#10003;</div>
+      <h2>ヒアリング内容を受け付けました</h2>
+      <p>担当者より内容を確認のうえ、追ってご連絡いたします。<br />下記の受付番号は、お問い合わせの際にお使いください。</p>
+      <span id="ref-code"></span>
+      <div>
+        <a class="back-portal-link" href="/portal.html">&larr; ポータルへ戻る</a>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">Aster Systems &mdash; Creative &amp; System Production</div>
+  </footer>
+
+  <script src="/js/pricing-config.js"></script>
+  <script>window.HEARING_CATEGORY = "video";</script>
+  <script src="/js/hearing-config.js"></script>
+  <script src="/js/hearing.js"></script>
+</body>
+</html>
