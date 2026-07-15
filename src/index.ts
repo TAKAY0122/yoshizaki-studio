@@ -157,6 +157,12 @@ app.post("/api/hearings", async (c) => {
 // ============================================================
 // 管理者：初回セットアップ（管理者が0件のときのみ有効）
 // ============================================================
+app.get("/api/admin/setup-status", async (c) => {
+  const existing = await c.env.DB.prepare("SELECT COUNT(*) as n FROM admins").first();
+  const needsSetup = !existing || Number(existing.n) === 0;
+  return c.json({ needsSetup });
+});
+
 app.post("/api/admin/setup", async (c) => {
   const existing = await c.env.DB.prepare("SELECT COUNT(*) as n FROM admins").first();
   if (existing && Number(existing.n) > 0) {

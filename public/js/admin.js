@@ -76,8 +76,22 @@ async function bootstrap() {
     loadCases();
     return;
   } catch (e) {
-    // 未ログイン → ログイン画面へ
+    // 未ログイン → 続けて初回セットアップの要否を確認
   }
+
+  try {
+    const status = await api("/api/admin/setup-status");
+    if (status.needsSetup) {
+      showSetup();
+      return;
+    }
+  } catch (e) {
+    // 確認自体に失敗した場合のみ、念のためリンクを見えるようにしておく
+    showLogin();
+    if (els.setupNote) els.setupNote.hidden = false;
+    return;
+  }
+
   showLogin();
 }
 
