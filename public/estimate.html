@@ -13,12 +13,11 @@
 </head>
 <body>
 
-  <div class="brand-line"></div>
   <header class="site-header">
     <div class="wrap">
       <div class="brand">
-        <img src="/img/aster-icon.png" alt="" class="brand-icon" />
-        <span class="brand-word">Aster<em>Systems</em></span>
+        <a href="/portal.html" class="brand-link"><img src="/img/aster-icon.png" alt="" class="brand-icon" />
+        <span class="brand-word">Aster<em>Systems</em></span></a>
         <span class="pill">ESTIMATE</span>
       </div>
       <a class="back-link" href="/portal.html">← ポータルへ戻る</a>
@@ -30,6 +29,7 @@
       <p class="eyebrow">Estimate Simulator</p>
       <h1>お見積もりシミュレーター</h1>
       <p class="lede">制作カテゴリと仕様を選ぶだけで、概算費用をその場で算出します。算出後に発行される見積もりコードは、各ヒアリングシートにそのまま引き継げます。</p>
+      <div id="campaign-banner" class="campaign-banner" hidden></div>
       <div class="steps" id="steps">
         <span class="step is-active" data-step="1"><i>1</i>カテゴリ選択</span>
         <span class="step" data-step="2"><i>2</i>仕様選択</span>
@@ -62,6 +62,14 @@
         </section>
 
         <section id="options-section" hidden>
+          <div id="bundle-section" class="bundle-section" hidden>
+            <div class="bundle-section-head">
+              <span class="bundle-badge">⏱ おトクなセットプラン</span>
+              <span id="bundle-subtitle" class="bundle-subtitle"></span>
+            </div>
+            <div id="bundle-grid" class="bundle-grid"></div>
+            <div class="bundle-or-divider"><span>または個別に選ぶ</span></div>
+          </div>
           <div class="section-head">
             <h2>仕様を選択</h2>
           </div>

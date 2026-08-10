@@ -6,7 +6,13 @@ const state = {
   categoryId: null,
   planId: null,
   addons: {}, // id -> qty(number) or boolean
+  bundleId: null,
+  deliveryOptionId: null,
 };
+
+let BUNDLES = [];
+let DELIVERY_OPTIONS = [];
+let ACTIVE_CAMPAIGN = null;
 
 const els = {
   categoryGrid: document.getElementById("category-grid"),
@@ -25,7 +31,16 @@ const els = {
   quoteLink: document.getElementById("quote-link"),
   stepsEl: document.getElementById("steps"),
   summaryToggle: document.getElementById("summary-toggle"),
+  bundleSection: document.getElementById("bundle-section"),
+  bundleGrid: document.getElementById("bundle-grid"),
+  campaignBanner: document.getElementById("campaign-banner"),
 };
+
+function escapeHtmlClient(s) {
+  const div = document.createElement("div");
+  div.textContent = s;
+  return div.innerHTML;
+}
 
 function formatYen(n) {
   return "¥" + n.toLocaleString("ja-JP");
@@ -51,6 +66,134 @@ function getCategory(id) {
   return CATEGORIES.find((c) => c.id === id);
 }
 
+/* ---------------- 動的データ（料金上書き・セットプラン・納品スケジュール・キャンペーン） ---------------- */
+function applyPricingOverrides(overrides) {
+  overrides.forEach((o) => {
+    let item = null;
+    if (o.item_type === "plan") {
+      const cat = getCategory(o.category_id);
+      item = cat && cat.plans.find((p) => p.id === o.item_id);
+    } else if (o.item_type === "addon") {
+      const cat = getCategory(o.category_id);
+      item = cat && cat.addons.find((a) => a.id === o.item_id);
+    } else if (o.item_type === "common_addon") {
+      item = COMMON_ADDONS.find((a) => a.id === o.item_id);
+    }
+    if (item) {
+      item.rate = o.rate;
+      item.days = o.days;
+      item.price = Math.round(o.rate * o.days);
+    }
+  });
+}
+
+async function loadDynamicData() {
+  try {
+    const [overridesRes, bundlesRes, deliveryRes, campaignRes] = await Promise.all([
+      fetch("/api/pricing-overrides").then((r) => (r.ok ? r.json() : { overrides: [] })).catch(() => ({ overrides: [] })),
+      fetch("/api/bundles").then((r) => (r.ok ? r.json() : { bundles: [] })).catch(() => ({ bundles: [] })),
+      fetch("/api/delivery-options").then((r) => (r.ok ? r.json() : { options: [] })).catch(() => ({ options: [] })),
+      fetch("/api/campaigns/active").then((r) => (r.ok ? r.json() : { campaign: null })).catch(() => ({ campaign: null })),
+    ]);
+
+    applyPricingOverrides(overridesRes.overrides || []);
+    BUNDLES = bundlesRes.bundles || [];
+    DELIVERY_OPTIONS = deliveryRes.options || [];
+    ACTIVE_CAMPAIGN = campaignRes.campaign || null;
+
+    const defaultDelivery = DELIVERY_OPTIONS.find((d) => d.is_default) || DELIVERY_OPTIONS[0];
+    if (defaultDelivery) state.deliveryOptionId = defaultDelivery.id;
+  } catch (e) {
+    // 動的データの取得に失敗しても、基本の見積もり機能は使えるようにする
+    console.warn("動的な料金設定の取得に失敗しました（基本料金のみで表示します）:", e);
+  }
+
+  renderBundles();
+  renderCampaignBanner();
+}
+
+function renderBundles() {
+  if (!els.bundleSection || !els.bundleGrid) return;
+  const catBundles = BUNDLES.filter((b) => b.category_id === state.categoryId);
+  if (!state.categoryId || !catBundles.length) {
+    els.bundleSection.hidden = true;
+    return;
+  }
+  els.bundleSection.hidden = false;
+
+  const subtitleEl = document.getElementById("bundle-subtitle");
+  if (subtitleEl) {
+    const percentBundles = catBundles.filter((b) => b.discount_type === "percent");
+    const maxPct = percentBundles.length ? Math.max(...percentBundles.map((b) => b.discount_value)) : null;
+    subtitleEl.textContent = maxPct
+      ? `バラで選ぶより最大${maxPct}%OFF・選ぶと見積もりに直行`
+      : "バラで選ぶよりおトク・選ぶと見積もりに直行";
+  }
+
+  els.bundleGrid.innerHTML = catBundles.map((b) => {
+    const cat = getCategory(b.category_id);
+    const plan = cat && cat.plans.find((p) => p.id === b.plan_id);
+    if (!cat || !plan) return "";
+    const addons = (b.addon_ids || [])
+      .map((id) => cat.addons.find((a) => a.id === id))
+      .filter(Boolean);
+    const subtotal = plan.price + addons.reduce((s, a) => s + a.price, 0);
+    const discounted = b.discount_type === "fixed"
+      ? Math.max(0, subtotal - b.discount_value)
+      : Math.round(subtotal * (1 - b.discount_value / 100));
+    const saved = subtotal - discounted;
+    const savedPct = subtotal ? Math.round((saved / subtotal) * 100) : 0;
+    const chips = [plan.label, ...addons.map((a) => a.label)];
+
+    return `
+      <button type="button" class="bundle-card ${b.featured ? "is-featured" : ""}" data-bundle="${b.id}">
+        ${b.featured ? '<span class="bundle-ribbon">人気No.1</span>' : ""}
+        <div class="bundle-top">
+          <span class="icon-badge" style="background:${cat.badge}">${cat.emoji}</span>
+          ${b.audience_tag ? `<span class="bundle-audience">${b.audience_tag}</span>` : ""}
+        </div>
+        <span class="bundle-label">${b.label}</span>
+        <div class="bundle-chips">${chips.map((c) => `<span class="bundle-chip">${c}</span>`).join("")}</div>
+        <span class="bundle-price">
+          <span class="bundle-price-was">¥${subtotal.toLocaleString("ja-JP")}</span>
+          <span class="bundle-price-now">¥${discounted.toLocaleString("ja-JP")}</span>
+          <span class="bundle-price-tax">税別</span>
+        </span>
+        ${saved > 0 ? `<span class="bundle-saved">▲ ¥${saved.toLocaleString("ja-JP")} お得（${savedPct}%OFF）</span>` : ""}
+      </button>`;
+  }).join("");
+
+  els.bundleGrid.querySelectorAll("[data-bundle]").forEach((btn) => {
+    btn.addEventListener("click", () => selectBundle(btn.dataset.bundle));
+  });
+}
+
+function selectBundle(bundleId) {
+  const bundle = BUNDLES.find((b) => b.id === bundleId);
+  if (!bundle) return;
+  selectCategory(bundle.category_id, { keepBundle: true });
+  state.planId = bundle.plan_id;
+  state.addons = {};
+  (bundle.addon_ids || []).forEach((id) => { state.addons[id] = true; });
+  state.bundleId = bundle.id;
+  renderOptions();
+  const scrollTarget = document.getElementById("delivery-opt-group") || els.optionsSection;
+  scrollTarget.scrollIntoView?.({ behavior: "smooth", block: "start" });
+}
+
+function renderCampaignBanner() {
+  if (!els.campaignBanner) return;
+  if (!ACTIVE_CAMPAIGN) {
+    els.campaignBanner.hidden = true;
+    return;
+  }
+  const discountText = ACTIVE_CAMPAIGN.discount_type === "fixed"
+    ? `¥${Number(ACTIVE_CAMPAIGN.discount_value).toLocaleString("ja-JP")}引き`
+    : `${ACTIVE_CAMPAIGN.discount_value}%OFF`;
+  els.campaignBanner.hidden = false;
+  els.campaignBanner.innerHTML = `🎉 <strong>${ACTIVE_CAMPAIGN.label}</strong>　${discountText}実施中${ACTIVE_CAMPAIGN.banner_text ? "　" + ACTIVE_CAMPAIGN.banner_text : ""}`;
+}
+
 /* ---------------- カテゴリ選択 ---------------- */
 function renderCategoryGrid() {
   els.categoryGrid.innerHTML = CATEGORIES.map(
@@ -67,13 +210,15 @@ function renderCategoryGrid() {
   });
 }
 
-function selectCategory(id) {
+function selectCategory(id, opts = {}) {
   if (state.categoryId !== id) {
     state.categoryId = id;
     state.planId = null;
     state.addons = {};
   }
+  if (!opts.keepBundle) state.bundleId = null;
   renderCategoryGrid();
+  renderBundles();
   renderOptions();
   els.optionsSection.hidden = false;
   setStep(2);
@@ -175,17 +320,46 @@ function renderOptions() {
     </div>
   `;
 
-  els.optionsInner.innerHTML = planHtml + addonHtml + commonHtml + recurringHtml;
+  const deliveryHtml = DELIVERY_OPTIONS.length
+    ? `
+    <div class="opt-group" id="delivery-opt-group">
+      <h4>🚚 納品スケジュール</h4>
+      <div class="opt-list">
+        ${DELIVERY_OPTIONS.map((d) => {
+          const checked = state.deliveryOptionId === d.id;
+          const diffPct = Math.round((d.multiplier - 1) * 100);
+          const diffLabel = diffPct === 0 ? "±0%" : diffPct > 0 ? `+${diffPct}%` : `${diffPct}%`;
+          return `
+          <label class="opt-row">
+            <input type="radio" name="delivery" value="${d.id}" ${checked ? "checked" : ""} />
+            <span class="opt-label">${d.label}${d.description ? `<br /><span class="opt-sub">${d.description}</span>` : ""}</span>
+            <span class="opt-price">${diffLabel}</span>
+          </label>`;
+        }).join("")}
+      </div>
+    </div>`
+    : "";
+
+  els.optionsInner.innerHTML = planHtml + addonHtml + commonHtml + deliveryHtml + recurringHtml;
+
+  els.optionsInner.querySelectorAll('input[name="delivery"]').forEach((el) => {
+    el.addEventListener("change", (e) => {
+      state.deliveryOptionId = e.target.value;
+      updateSummary();
+    });
+  });
 
   els.optionsInner.querySelectorAll('input[name="plan"]').forEach((el) => {
     el.addEventListener("change", (e) => {
       state.planId = e.target.value;
+      state.bundleId = null;
       updateSummary();
     });
   });
   els.optionsInner.querySelectorAll('input[data-addon][data-type="checkbox"], input[data-addon][data-type="multiplier"]').forEach((el) => {
     el.addEventListener("change", (e) => {
       state.addons[e.target.dataset.addon] = e.target.checked;
+      state.bundleId = null;
       updateSummary();
     });
   });
@@ -193,6 +367,7 @@ function renderOptions() {
     btn.addEventListener("click", () => {
       const id = btn.dataset.stepperInc;
       state.addons[id] = (state.addons[id] || 0) + 1;
+      state.bundleId = null;
       document.getElementById(`stepper-${id}`).textContent = state.addons[id];
       updateSummary();
     });
@@ -201,6 +376,7 @@ function renderOptions() {
     btn.addEventListener("click", () => {
       const id = btn.dataset.stepperDec;
       state.addons[id] = Math.max(0, (state.addons[id] || 0) - 1);
+      state.bundleId = null;
       document.getElementById(`stepper-${id}`).textContent = state.addons[id];
       updateSummary();
     });
@@ -247,6 +423,35 @@ function computeTotal() {
     const before = total;
     total = Math.round(total * rush.value);
     breakdown.push({ label: rush.label, price: total - before });
+  }
+
+  // セットプラン割引
+  if (state.bundleId) {
+    const bundle = BUNDLES.find((b) => b.id === state.bundleId);
+    if (bundle) {
+      const before = total;
+      total = bundle.discount_type === "fixed"
+        ? Math.max(0, Math.round(total - bundle.discount_value))
+        : Math.round(total * (1 - bundle.discount_value / 100));
+      breakdown.push({ label: `🎁 ${bundle.label}（セット割引）`, price: total - before });
+    }
+  }
+
+  // 納品スケジュールによる倍率
+  const delivery = DELIVERY_OPTIONS.find((d) => d.id === state.deliveryOptionId);
+  if (delivery && delivery.multiplier !== 1) {
+    const before = total;
+    total = Math.round(total * delivery.multiplier);
+    breakdown.push({ label: `🚚 ${delivery.label}`, price: total - before });
+  }
+
+  // キャンペーン割引
+  if (ACTIVE_CAMPAIGN && (!ACTIVE_CAMPAIGN.category_id || ACTIVE_CAMPAIGN.category_id === state.categoryId)) {
+    const before = total;
+    total = ACTIVE_CAMPAIGN.discount_type === "fixed"
+      ? Math.max(0, Math.round(total - ACTIVE_CAMPAIGN.discount_value))
+      : Math.round(total * (1 - ACTIVE_CAMPAIGN.discount_value / 100));
+    breakdown.push({ label: `🎉 ${ACTIVE_CAMPAIGN.label}（キャンペーン割引）`, price: total - before });
   }
 
   const recurringTotal = cat.recurring.reduce((sum, r) => sum + r.price, 0);
@@ -360,8 +565,11 @@ els.issueBtn.addEventListener("click", async () => {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    if (data.caseId) {
+      els.hearingLink.href = `${cat.hearingUrl}?code=${encodeURIComponent(code)}&caseId=${encodeURIComponent(data.caseId)}`;
+    }
     statusEl.className = "send-status is-success";
-    statusEl.textContent = `${email} 宛に見積書をお送りしました。ご確認ください。`;
+    statusEl.innerHTML = `${escapeHtmlClient(email)} 宛に見積書をお送りしました。ご確認ください。<br /><span class="status-sub">※ 数分待っても届かない場合は、迷惑メールフォルダもご確認ください。</span>`;
   } catch (err) {
     statusEl.className = "send-status is-error";
     statusEl.textContent = `メール送信に失敗しました（${err.message}）。お手数ですが下記リンクから見積書をご確認ください。`;
@@ -381,6 +589,7 @@ els.copyBtn.addEventListener("click", async () => {
 });
 
 renderCategoryGrid();
+loadDynamicData();
 
 /* ---------------- AI提案 ---------------- */
 const aiEls = {

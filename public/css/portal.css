@@ -23,11 +23,6 @@ a { color: inherit; text-decoration: none; }
   padding: 0 clamp(16px, 4vw, 40px);
 }
 
-/* ---------------- Brand line ---------------- */
-.brand-line {
-  height: 3px;
-  background: linear-gradient(90deg, var(--gold) 0%, #e6c862 50%, var(--gold) 100%);
-}
 
 /* ---------------- Header ---------------- */
 .site-header {
@@ -265,3 +260,6 @@ a { color: inherit; text-decoration: none; }
   .tool-card h3 { font-size: 0.98rem; }
   .section-head h2 { font-size: 1.15rem; }
 }
+
+.brand-link { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+.brand-link:hover .brand-word { color: var(--gold-ink, var(--gold)); }

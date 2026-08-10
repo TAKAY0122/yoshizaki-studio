@@ -13,7 +13,6 @@
 </head>
 <body>
 
-  <div class="brand-line"></div>
 
   <!-- ログイン画面 -->
   <div id="login-view">
@@ -68,6 +67,8 @@
       </div>
       <div style="display:flex;align-items:center;gap:14px">
         <span class="who" id="who-label"></span>
+        <button class="settings-btn" id="email-settings-btn">✉️ メール設定</button>
+        <button class="settings-btn" id="pricing-settings-btn">🎁 料金・キャンペーン設定</button>
         <button class="logout-btn" id="logout-btn">ログアウト</button>
       </div>
     </header>
@@ -122,6 +123,15 @@
       </div>
 
       <div class="modal-section">
+        <h3>書類の発行</h3>
+        <div class="doc-actions">
+          <button class="doc-btn" id="modal-open-proposal">📋 提案依頼書を表示</button>
+          <button class="doc-btn" id="modal-send-formal-quote">✅ 正式な見積書を送付</button>
+        </div>
+        <span class="who" id="modal-doc-status"></span>
+      </div>
+
+      <div class="modal-section">
         <h3>ステータス変更</h3>
         <div class="status-row">
           <select class="status-select" id="modal-status">
@@ -139,6 +149,170 @@
       <div class="modal-section">
         <h3>対応履歴</h3>
         <ul class="log-list" id="modal-logs"></ul>
+      </div>
+    </div>
+  </div>
+
+  <div id="email-settings-modal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <h2>メール設定</h2>
+          <div class="who">見積書メールの署名・お知らせ文を編集できます</div>
+        </div>
+        <button class="modal-close" id="email-settings-close">&times;</button>
+      </div>
+
+      <div class="modal-section">
+        <h3>署名</h3>
+        <label class="f-label" for="es-company">会社名</label>
+        <input type="text" id="es-company" class="note-input" placeholder="株式会社Aster Systems" />
+        <label class="f-label" for="es-name" style="margin-top:10px;display:block;">担当者名</label>
+        <input type="text" id="es-name" class="note-input" placeholder="吉崎 天晴" />
+        <label class="f-label" for="es-email" style="margin-top:10px;display:block;">担当者メールアドレス</label>
+        <input type="email" id="es-email" class="note-input" placeholder="t.yoshizaki@aster-system.com" />
+      </div>
+
+      <div class="modal-section">
+        <h3>お知らせ文（任意）</h3>
+        <p class="who" style="margin-bottom:8px;">見積書メール本文に、黄色い枠で挿入されます。キャンペーンや営業時間変更などの案内に使えます。空欄にすると非表示になります。</p>
+        <textarea class="note-input" id="es-notice" rows="4" placeholder="例：夏季休業のお知らせ：8/13〜8/16は休業とさせていただきます。"></textarea>
+      </div>
+
+      <div class="status-row">
+        <span id="es-status" class="who"></span>
+        <button class="save-btn" id="email-settings-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pricing-settings-modal">
+    <div class="modal-card modal-card--wide">
+      <div class="modal-head">
+        <div>
+          <h2>料金・キャンペーン設定</h2>
+          <div class="who">保存すると見積もりシミュレーターに即反映されます</div>
+        </div>
+        <button class="modal-close" id="pricing-settings-close">&times;</button>
+      </div>
+
+      <div class="tab-row">
+        <button type="button" class="tab-btn is-active" data-tab="rates">基本料金</button>
+        <button type="button" class="tab-btn" data-tab="bundles">セットプラン</button>
+        <button type="button" class="tab-btn" data-tab="delivery">納品スケジュール</button>
+        <button type="button" class="tab-btn" data-tab="campaigns">キャンペーン</button>
+      </div>
+
+      <!-- 基本料金タブ -->
+      <div class="tab-panel" data-panel="rates">
+        <label class="f-label" for="rates-category">カテゴリ</label>
+        <select id="rates-category" class="note-input"></select>
+        <table class="rates-table" id="rates-table"></table>
+        <div class="status-row">
+          <span id="rates-status" class="who"></span>
+          <button class="save-btn" id="rates-save">このカテゴリを保存</button>
+        </div>
+      </div>
+
+      <!-- セットプランタブ -->
+      <div class="tab-panel" data-panel="bundles" hidden>
+        <div id="bundles-list" class="settings-list"></div>
+        <h3 class="settings-subhead">新規セットプランを追加</h3>
+        <label class="f-label" for="bundle-category">カテゴリ</label>
+        <select id="bundle-category" class="note-input"></select>
+        <label class="f-label" for="bundle-plan" style="margin-top:8px;">ベースプラン</label>
+        <select id="bundle-plan" class="note-input"></select>
+        <label class="f-label" style="margin-top:8px;">含めるオプション</label>
+        <div id="bundle-addons" class="checkbox-list"></div>
+        <label class="f-label" for="bundle-label" style="margin-top:8px;">セット名</label>
+        <input type="text" id="bundle-label" class="note-input" placeholder="例：Web制作おまかせセット" />
+        <label class="f-label" for="bundle-desc" style="margin-top:8px;">説明（任意）</label>
+        <input type="text" id="bundle-desc" class="note-input" placeholder="例：コーポレートサイト＋SEO対策込み" />
+        <div class="inline-row">
+          <div>
+            <label class="f-label" for="bundle-discount-type">割引方式</label>
+            <select id="bundle-discount-type" class="note-input">
+              <option value="percent">％割引</option>
+              <option value="fixed">固定額割引</option>
+            </select>
+          </div>
+          <div>
+            <label class="f-label" for="bundle-discount-value">割引値</label>
+            <input type="number" id="bundle-discount-value" class="note-input" placeholder="10" />
+          </div>
+        </div>
+        <label class="f-label" for="bundle-audience" style="margin-top:8px;">対象者タグ（カード上部に表示・任意）</label>
+        <input type="text" id="bundle-audience" class="note-input" placeholder="例：スタートアップ向け、中小企業向け" />
+        <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:var(--step--1);">
+          <input type="checkbox" id="bundle-featured" /> 「人気No.1」リボンを表示する
+        </label>
+        <div class="status-row">
+          <span id="bundle-status" class="who"></span>
+          <button class="save-btn" id="bundle-add">追加する</button>
+        </div>
+      </div>
+
+      <!-- 納品スケジュールタブ -->
+      <div class="tab-panel" data-panel="delivery" hidden>
+        <div id="delivery-list" class="settings-list"></div>
+        <h3 class="settings-subhead">新規スケジュールを追加</h3>
+        <label class="f-label" for="delivery-label">名称</label>
+        <input type="text" id="delivery-label" class="note-input" placeholder="例：特急納期（+50%）" />
+        <label class="f-label" for="delivery-desc" style="margin-top:8px;">説明（任意）</label>
+        <input type="text" id="delivery-desc" class="note-input" placeholder="例：通常の半分の納期で対応" />
+        <label class="f-label" for="delivery-multiplier" style="margin-top:8px;">倍率（例：割増+50%なら 1.5 / 割引-10%なら 0.9）</label>
+        <input type="number" step="0.01" id="delivery-multiplier" class="note-input" placeholder="1.0" />
+        <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:var(--step--1);">
+          <input type="checkbox" id="delivery-is-default" /> これを標準の納期にする
+        </label>
+        <div class="status-row">
+          <span id="delivery-status" class="who"></span>
+          <button class="save-btn" id="delivery-add">追加する</button>
+        </div>
+      </div>
+
+      <!-- キャンペーンタブ -->
+      <div class="tab-panel" data-panel="campaigns" hidden>
+        <div id="campaigns-list" class="settings-list"></div>
+        <h3 class="settings-subhead">新規キャンペーンを追加</h3>
+        <label class="f-label" for="campaign-label">キャンペーン名</label>
+        <input type="text" id="campaign-label" class="note-input" placeholder="例：夏の特別キャンペーン" />
+        <label class="f-label" for="campaign-banner" style="margin-top:8px;">バナー文言（任意）</label>
+        <input type="text" id="campaign-banner-text" class="note-input" placeholder="例：8/31までの限定特典です" />
+        <div class="inline-row">
+          <div>
+            <label class="f-label" for="campaign-discount-type">割引方式</label>
+            <select id="campaign-discount-type" class="note-input">
+              <option value="percent">％割引</option>
+              <option value="fixed">固定額割引</option>
+            </select>
+          </div>
+          <div>
+            <label class="f-label" for="campaign-discount-value">割引値</label>
+            <input type="number" id="campaign-discount-value" class="note-input" placeholder="5" />
+          </div>
+        </div>
+        <label class="f-label" for="campaign-category" style="margin-top:8px;">対象カテゴリ（未選択なら全カテゴリ）</label>
+        <select id="campaign-category" class="note-input">
+          <option value="">すべて</option>
+        </select>
+        <div class="inline-row">
+          <div>
+            <label class="f-label" for="campaign-start">開始日（任意）</label>
+            <input type="date" id="campaign-start" class="note-input" />
+          </div>
+          <div>
+            <label class="f-label" for="campaign-end">終了日（任意）</label>
+            <input type="date" id="campaign-end" class="note-input" />
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:var(--step--1);">
+          <input type="checkbox" id="campaign-active" /> このキャンペーンを有効にする（他のキャンペーンは自動的に無効化されます）
+        </label>
+        <div class="status-row">
+          <span id="campaign-status" class="who"></span>
+          <button class="save-btn" id="campaign-add">追加する</button>
+        </div>
       </div>
     </div>
   </div>

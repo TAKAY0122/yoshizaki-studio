@@ -157,3 +157,6 @@ table.items td.num, table.items th.num { text-align: right; font-family: var(--f
   .editable { border-bottom: none; }
   @page { size: A4; margin: 18mm 16mm; }
 }
+
+.brand-link { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+.brand-link:hover .brand-word { color: var(--gold-ink, var(--gold)); }

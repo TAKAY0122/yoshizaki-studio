@@ -62,3 +62,9 @@
     transition-duration: 0.001ms !important;
   }
 }
+
+/* [hidden] 属性は常に最優先で非表示にする。
+   個別クラスで display:inline-block/flex等を明示的に指定していると、
+   同じ詳細度の [hidden]（UAスタイル）より後勝ちしてしまい、
+   JS側で hidden=true にしても見えてしまうバグがあったための対策。 */
+[hidden] { display: none !important; }

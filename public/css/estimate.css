@@ -23,11 +23,6 @@ a { color: inherit; text-decoration: none; }
   padding: 0 clamp(16px, 4vw, 40px);
 }
 
-/* ---------------- Brand line ---------------- */
-.brand-line {
-  height: 3px;
-  background: linear-gradient(90deg, var(--gold) 0%, #e6c862 50%, var(--gold) 100%);
-}
 
 /* ---------------- Header ---------------- */
 .site-header { background: var(--card); border-bottom: 1px solid var(--border); }
@@ -83,18 +78,6 @@ a { color: inherit; text-decoration: none; }
   margin: 0 0 12px;
 }
 .hero p.lede { color: var(--ink-soft); max-width: 56ch; margin: 0; }
-
-#step-label {
-  display: inline-block;
-  margin-top: 18px;
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  color: var(--ink);
-  background: var(--card);
-  border: 1px solid var(--border);
-  padding: 7px 14px;
-  border-radius: 999px;
-}
 
 .steps {
   display: flex;
@@ -377,10 +360,11 @@ a { color: inherit; text-decoration: none; }
 .contact-fields input:focus { outline: none; border-color: var(--gold); background: var(--card); }
 .contact-note { font-size: 11px; color: var(--ink-faint); margin: 0; }
 
-.send-status { margin-top: 10px; font-size: var(--step--1); padding: 8px 10px; border-radius: 8px; }
+.send-status { margin-top: 10px; font-size: var(--step--1); padding: 8px 10px; border-radius: 8px; line-height: 1.6; }
 .send-status.is-success { background: #e8f5ec; color: #256b3e; }
 .send-status.is-error { background: #fdeceb; color: #a13a2e; }
 .send-status.is-loading { background: var(--bg); color: var(--ink-faint); }
+.status-sub { display: inline-block; margin-top: 3px; font-size: 11px; opacity: 0.85; }
 
 .summary-actions { margin-top: 14px; display: flex; gap: 12px; flex-wrap: wrap; }
 #issue-code-btn {
@@ -480,3 +464,140 @@ footer.site-footer {
   #summary-total { font-size: 1.05rem; }
   .summary-top h4 { font-size: 0.72rem; }
 }
+
+/* ---------------- キャンペーンバナー ---------------- */
+.campaign-banner {
+  margin-top: 16px;
+  padding: 10px 16px;
+  background: var(--gold-soft);
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  font-size: var(--step--1);
+  color: var(--navy);
+  display: inline-block;
+}
+
+/* ---------------- おトクなセットプラン ---------------- */
+.bundle-section {
+  padding: 0 0 22px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+.bundle-or-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  color: var(--ink-faint);
+  font-size: var(--step--1);
+}
+.bundle-or-divider::before, .bundle-or-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.bundle-section-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.bundle-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--step--1);
+  color: #fff;
+  background: linear-gradient(135deg, #ff9a4d, #ff6a3d);
+  padding: 8px 16px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.bundle-subtitle { font-size: var(--step--1); color: var(--ink-soft); }
+.bundle-subtitle::before { content: none; }
+
+.bundle-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+.bundle-card {
+  all: unset;
+  position: relative;
+  cursor: pointer;
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 20px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+  transition: transform 0.2s var(--ease-studio), box-shadow 0.2s var(--ease-studio), border-color 0.2s var(--ease-studio);
+}
+.bundle-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift); border-color: var(--gold); }
+.bundle-card.is-featured { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), var(--shadow-lift); }
+
+.bundle-ribbon {
+  position: absolute;
+  top: 0; right: 0;
+  background: var(--gold);
+  color: var(--gold-ink);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 0 0 0 10px;
+}
+
+.bundle-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bundle-card .icon-badge {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  font-size: 0.95rem;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bundle-audience {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+  letter-spacing: 0.02em;
+}
+
+.bundle-label { font-family: var(--font-display); font-weight: 700; font-size: var(--step-1); color: var(--navy); line-height: 1.4; }
+
+.bundle-chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 2px 0 4px; }
+.bundle-chip {
+  font-size: 11px;
+  color: var(--ink-soft);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+
+.bundle-price { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.bundle-price-was { font-size: 12px; color: var(--ink-faint); text-decoration: line-through; }
+.bundle-price-now { font-family: var(--font-display); font-weight: 800; color: var(--gold-ink); font-size: var(--step-2); }
+.bundle-price-tax { font-size: 11px; color: var(--ink-faint); }
+.bundle-saved {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--danger);
+}
+
+/* ---------------- 納品スケジュール補足 ---------------- */
+.opt-sub { font-size: 11px; color: var(--ink-faint); font-weight: 400; }
+
+.brand-link { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+.brand-link:hover .brand-word { color: var(--gold-ink, var(--gold)); }

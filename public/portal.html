@@ -13,12 +13,11 @@
 </head>
 <body>
 
-  <div class="brand-line"></div>
   <header class="site-header">
     <div class="wrap">
       <div class="brand">
-        <img src="/img/aster-icon.png" alt="" class="brand-icon" />
-        <span class="brand-word">Aster<em>Systems</em></span>
+        <a href="/portal.html" class="brand-link"><img src="/img/aster-icon.png" alt="" class="brand-icon" />
+        <span class="brand-word">Aster<em>Systems</em></span></a>
         <span class="pill">PORTAL</span>
       </div>
     </div>
@@ -93,7 +92,7 @@
 
   <footer class="site-footer">
     <div class="wrap">
-      <span class="foot-brand" id="secret-admin-trigger">Aster Systems — Creative &amp; System Production</span>
+      <span class="foot-brand" id="secret-admin-trigger" style="user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;">Aster Systems — Creative &amp; System Production</span>
       <nav class="foot-links">
         <a href="/estimate.html">見積もり</a>
         <a href="/mypage">マイページ</a>
@@ -107,11 +106,13 @@
       var trigger = document.getElementById("secret-admin-trigger");
       var count = 0;
       var timer = null;
-      trigger.style.cursor = "default";
-      trigger.addEventListener("click", function () {
+      trigger.addEventListener("click", function (e) {
+        e.preventDefault();
+        window.getSelection && window.getSelection().removeAllRanges(); // 誤選択を解除
         count++;
+        console.log("[secret-admin-trigger] click " + count + "/5");
         clearTimeout(timer);
-        timer = setTimeout(function () { count = 0; }, 2500);
+        timer = setTimeout(function () { count = 0; }, 4000);
         if (count >= 5) {
           count = 0;
           window.location.href = "/admin";

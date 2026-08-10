@@ -193,12 +193,14 @@ function initHearingForm() {
     if (!ok) return;
 
     const answers = collectFormData(config);
-    const refCode = genRefCode();
+    const urlCaseId = new URLSearchParams(location.search).get("caseId");
+    const refCode = urlCaseId || genRefCode();
 
     const payload = {
       category: window.HEARING_CATEGORY,
       answers,
       estimateCode: estimateCtx ? estimateCtx.code : null,
+      caseId: urlCaseId || null,
       refCode,
       submittedAt: new Date().toISOString(),
     };

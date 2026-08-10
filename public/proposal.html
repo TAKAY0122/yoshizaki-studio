@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light" />
+<meta name="robots" content="noindex" />
+<title>提案依頼書 | Aster Systems</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/proposal.css" />
+</head>
+<body>
+
+  <div class="no-print toolbar">
+    <div class="wrap toolbar-inner">
+      <a href="/portal.html" class="brand-link">
+        <img src="/img/aster-icon.png" alt="" class="brand-icon" />
+        <span class="brand-word">Aster<em>Systems</em></span>
+      </a>
+      <button type="button" id="print-btn">🖨 印刷 / PDFとして保存</button>
+    </div>
+  </div>
+
+  <main class="wrap sheet" id="sheet" hidden>
+    <header class="doc-head">
+      <div>
+        <p class="doc-eyebrow">PROPOSAL REQUEST</p>
+        <h1>提案依頼書</h1>
+      </div>
+      <div class="doc-meta">
+        <div>受付番号：<span id="case-id"></span></div>
+        <div>発行日：<span id="issue-date"></span></div>
+        <div>カテゴリ：<span id="category-label"></span></div>
+      </div>
+    </header>
+
+    <section class="block">
+      <h2>お客様情報</h2>
+      <dl class="kv" id="customer-info"></dl>
+    </section>
+
+    <section class="block" id="estimate-block" hidden>
+      <h2>概算見積もり内容（見積もりシミュレーターより）</h2>
+      <div id="estimate-content"></div>
+    </section>
+
+    <section class="block" id="hearing-block">
+      <h2>ヒアリング回答</h2>
+      <div id="hearing-content"></div>
+    </section>
+
+    <p class="doc-footer-note">本書は、お客様からのヒアリング回答をもとに、株式会社Aster Systemsが提案作成の参考資料として作成したものです。</p>
+  </main>
+
+  <div class="wrap" id="error-box" hidden>
+    <p id="error-message"></p>
+  </div>
+
+  <script src="/js/hearing-config.js"></script>
+  <script src="/js/pricing-config.js"></script>
+  <script src="/js/proposal.js"></script>
+</body>
+</html>

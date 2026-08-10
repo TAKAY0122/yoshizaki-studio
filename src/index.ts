@@ -67,6 +67,12 @@ function newId(): string {
   return crypto.randomUUID();
 }
 
+function newCaseId(prefix: string): string {
+  const ymd = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `${prefix}-${ymd}-${rand}`;
+}
+
 // ============================================================
 // 認証ミドルウェア
 // ============================================================
@@ -101,27 +107,41 @@ app.post("/api/hearings", async (c) => {
     return c.json({ error: "invalid payload" }, 400);
   }
 
-  // お客様には hearing.js が生成した refCode（例: HR-20260714-AB12）を受付番号として
-  // 表示するため、これをそのまま cases.id（主キー）として使う。
-  // マイページ（/api/mypage）はこの id で照会するため、両者が一致している必要がある。
-  const caseId: string = body.refCode || newId();
   const now = new Date().toISOString();
+  const answerName = body.answers.contact_name || body.answers.company || "";
+  const answerEmail = body.answers.email || "";
+  const answerTel = body.answers.tel || "";
+  const answerCompany = body.answers.company || "";
 
-  await c.env.DB.prepare(
-    `INSERT INTO cases (id, category, status, customer_name, email, tel, company, created_at, updated_at)
-     VALUES (?, ?, 'new', ?, ?, ?, ?, ?, ?)`
-  )
-    .bind(
-      caseId,
-      body.category,
-      body.answers.contact_name || body.answers.company || "",
-      body.answers.email || "",
-      body.answers.tel || "",
-      body.answers.company || "",
-      now,
-      now
+  // 見積もりシミュレーターの段階で既に案件（case）が作成されている場合は
+  // その case を更新する（重複した案件が作られないようにするため）。
+  // お客様には hearing.js が生成した refCode（例: HR-20260714-AB12）を
+  // 受付番号として表示するため、新規作成時はこれをそのまま cases.id（主キー）として使う。
+  let caseId: string | null = null;
+  let isNewCase = true;
+
+  if (body.caseId) {
+    const existing = await c.env.DB.prepare("SELECT id FROM cases WHERE id = ?").bind(body.caseId).first();
+    if (existing) {
+      caseId = body.caseId;
+      isNewCase = false;
+      await c.env.DB.prepare(
+        `UPDATE cases SET status = 'hearing', customer_name = ?, email = ?, tel = ?, company = ?, updated_at = ? WHERE id = ?`
+      )
+        .bind(answerName, answerEmail, answerTel, answerCompany, now, caseId)
+        .run();
+    }
+  }
+
+  if (!caseId) {
+    caseId = body.refCode || newId();
+    await c.env.DB.prepare(
+      `INSERT INTO cases (id, category, status, customer_name, email, tel, company, created_at, updated_at)
+       VALUES (?, ?, 'hearing', ?, ?, ?, ?, ?, ?)`
     )
-    .run();
+      .bind(caseId, body.category, answerName, answerEmail, answerTel, answerCompany, now, now)
+      .run();
+  }
 
   await c.env.DB.prepare(
     `INSERT INTO hearings (id, case_id, category, answers, created_at) VALUES (?, ?, ?, ?, ?)`
@@ -129,7 +149,9 @@ app.post("/api/hearings", async (c) => {
     .bind(newId(), caseId, body.category, JSON.stringify(body.answers), now)
     .run();
 
-  if (body.estimateCode) {
+  // 見積もりコードがあり、かつ「見積もりシミュレーター段階で作られた既存case」
+  // ではない（＝estimatesレコードがまだ無い）場合のみ、ここでestimatesを記録する。
+  if (body.estimateCode && isNewCase) {
     let decoded: any = null;
     try {
       decoded = JSON.parse(decodeURIComponent(escape(atob(body.estimateCode))));
@@ -222,6 +244,343 @@ app.post("/api/admin/logout", async (c) => {
 
 app.get("/api/admin/me", requireAuth, async (c) => {
   return c.json({ admin: c.get("admin") });
+});
+
+// ============================================================
+// 管理者：見積書メールの署名・お知らせ文の設定
+// ============================================================
+const DEFAULT_EMAIL_SETTINGS = {
+  signature_company: "株式会社Aster Systems",
+  signature_name: "吉崎 天晴",
+  signature_email: "t.yoshizaki@aster-system.com",
+  custom_notice: "",
+};
+
+async function getEmailSettings(db: D1Database) {
+  const row: any = await db.prepare("SELECT * FROM email_settings WHERE id = 'default'").first();
+  if (!row) return DEFAULT_EMAIL_SETTINGS;
+  return {
+    signature_company: row.signature_company || DEFAULT_EMAIL_SETTINGS.signature_company,
+    signature_name: row.signature_name || DEFAULT_EMAIL_SETTINGS.signature_name,
+    signature_email: row.signature_email || DEFAULT_EMAIL_SETTINGS.signature_email,
+    custom_notice: row.custom_notice || "",
+  };
+}
+
+app.get("/api/admin/email-settings", requireAuth, async (c) => {
+  const settings = await getEmailSettings(c.env.DB);
+  return c.json({ settings });
+});
+
+app.put("/api/admin/email-settings", requireAuth, async (c) => {
+  const body = await c.req.json().catch(() => null);
+  if (!body) return c.json({ error: "invalid payload" }, 400);
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(
+    `INSERT INTO email_settings (id, signature_company, signature_name, signature_email, custom_notice, updated_at)
+     VALUES ('default', ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       signature_company = excluded.signature_company,
+       signature_name = excluded.signature_name,
+       signature_email = excluded.signature_email,
+       custom_notice = excluded.custom_notice,
+       updated_at = excluded.updated_at`
+  )
+    .bind(
+      String(body.signature_company || "").trim(),
+      String(body.signature_name || "").trim(),
+      String(body.signature_email || "").trim(),
+      String(body.custom_notice || "").trim(),
+      now
+    )
+    .run();
+  return c.json({ ok: true });
+});
+
+// ============================================================
+// 料金オーバーライド（人日単価・人日数の管理画面編集）
+// ------------------------------------------------------------
+// プラン／オプションの「項目そのものの一覧」は public/js/pricing-config.js
+// 側がカタログとして持っている。ここではその項目に対する
+// 上書き値（rate/days）だけを保存・提供する。
+// ============================================================
+app.get("/api/pricing-overrides", async (c) => {
+  const rows = await c.env.DB.prepare("SELECT category_id, item_type, item_id, rate, days FROM pricing_overrides").all();
+  return c.json({ overrides: rows.results });
+});
+
+app.get("/api/admin/pricing-overrides", requireAuth, async (c) => {
+  const rows = await c.env.DB.prepare("SELECT category_id, item_type, item_id, rate, days FROM pricing_overrides").all();
+  return c.json({ overrides: rows.results });
+});
+
+app.put("/api/admin/pricing-overrides", requireAuth, async (c) => {
+  const body = await c.req.json().catch(() => null);
+  if (!body || !Array.isArray(body.items)) return c.json({ error: "items(配列) は必須です" }, 400);
+  const now = new Date().toISOString();
+  for (const item of body.items) {
+    if (!item.category_id || !item.item_type || !item.item_id) continue;
+    const rate = Number(item.rate);
+    const days = Number(item.days);
+    if (!Number.isFinite(rate) || rate < 0 || !Number.isFinite(days) || days < 0) continue;
+    await c.env.DB.prepare(
+      `INSERT INTO pricing_overrides (category_id, item_type, item_id, rate, days, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(category_id, item_type, item_id) DO UPDATE SET
+         rate = excluded.rate, days = excluded.days, updated_at = excluded.updated_at`
+    )
+      .bind(item.category_id, item.item_type, item.item_id, rate, days, now)
+      .run();
+  }
+  return c.json({ ok: true });
+});
+
+// ============================================================
+// おトクなセットプラン（bundles）
+// ============================================================
+app.get("/api/bundles", async (c) => {
+  const rows = await c.env.DB.prepare(
+    "SELECT * FROM bundles WHERE active = 1 ORDER BY sort_order ASC, created_at ASC"
+  ).all();
+  return c.json({ bundles: rows.results.map(parseBundleRow) });
+});
+
+app.get("/api/admin/bundles", requireAuth, async (c) => {
+  const rows = await c.env.DB.prepare("SELECT * FROM bundles ORDER BY sort_order ASC, created_at ASC").all();
+  return c.json({ bundles: rows.results.map(parseBundleRow) });
+});
+
+function parseBundleRow(row: any) {
+  return {
+    id: row.id,
+    category_id: row.category_id,
+    label: row.label,
+    description: row.description,
+    plan_id: row.plan_id,
+    addon_ids: JSON.parse(row.addon_ids || "[]"),
+    discount_type: row.discount_type,
+    discount_value: row.discount_value,
+    audience_tag: row.audience_tag || "",
+    featured: !!row.featured,
+    active: !!row.active,
+    sort_order: row.sort_order,
+  };
+}
+
+app.post("/api/admin/bundles", requireAuth, async (c) => {
+  const body = await c.req.json().catch(() => null);
+  if (!body || !body.category_id || !body.label || !body.plan_id) {
+    return c.json({ error: "category_id, label, plan_id は必須です" }, 400);
+  }
+  const id = newCaseId("BD");
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(
+    `INSERT INTO bundles (id, category_id, label, description, plan_id, addon_ids, discount_type, discount_value, audience_tag, featured, active, sort_order, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  )
+    .bind(
+      id,
+      body.category_id,
+      body.label,
+      body.description || "",
+      body.plan_id,
+      JSON.stringify(body.addon_ids || []),
+      body.discount_type === "fixed" ? "fixed" : "percent",
+      Number(body.discount_value) || 0,
+      body.audience_tag || "",
+      body.featured ? 1 : 0,
+      body.active === false ? 0 : 1,
+      Number(body.sort_order) || 0,
+      now,
+      now
+    )
+    .run();
+  return c.json({ ok: true, id });
+});
+
+app.put("/api/admin/bundles/:id", requireAuth, async (c) => {
+  const id = c.req.param("id");
+  const body = await c.req.json().catch(() => null);
+  if (!body) return c.json({ error: "invalid payload" }, 400);
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(
+    `UPDATE bundles SET category_id=?, label=?, description=?, plan_id=?, addon_ids=?, discount_type=?, discount_value=?, audience_tag=?, featured=?, active=?, sort_order=?, updated_at=? WHERE id=?`
+  )
+    .bind(
+      body.category_id,
+      body.label,
+      body.description || "",
+      body.plan_id,
+      JSON.stringify(body.addon_ids || []),
+      body.discount_type === "fixed" ? "fixed" : "percent",
+      Number(body.discount_value) || 0,
+      body.audience_tag || "",
+      body.featured ? 1 : 0,
+      body.active === false ? 0 : 1,
+      Number(body.sort_order) || 0,
+      now,
+      id
+    )
+    .run();
+  return c.json({ ok: true });
+});
+
+app.delete("/api/admin/bundles/:id", requireAuth, async (c) => {
+  await c.env.DB.prepare("DELETE FROM bundles WHERE id = ?").bind(c.req.param("id")).run();
+  return c.json({ ok: true });
+});
+
+// ============================================================
+// 納品スケジュール（delivery_options）
+// ============================================================
+app.get("/api/delivery-options", async (c) => {
+  const rows = await c.env.DB.prepare(
+    "SELECT * FROM delivery_options WHERE active = 1 ORDER BY sort_order ASC, created_at ASC"
+  ).all();
+  return c.json({ options: rows.results });
+});
+
+app.get("/api/admin/delivery-options", requireAuth, async (c) => {
+  const rows = await c.env.DB.prepare("SELECT * FROM delivery_options ORDER BY sort_order ASC, created_at ASC").all();
+  return c.json({ options: rows.results });
+});
+
+app.post("/api/admin/delivery-options", requireAuth, async (c) => {
+  const body = await c.req.json().catch(() => null);
+  if (!body || !body.label) return c.json({ error: "label は必須です" }, 400);
+  const id = newCaseId("DL");
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(
+    `INSERT INTO delivery_options (id, label, description, multiplier, is_default, active, sort_order, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  )
+    .bind(
+      id,
+      body.label,
+      body.description || "",
+      Number(body.multiplier) || 1,
+      body.is_default ? 1 : 0,
+      body.active === false ? 0 : 1,
+      Number(body.sort_order) || 0,
+      now,
+      now
+    )
+    .run();
+  return c.json({ ok: true, id });
+});
+
+app.put("/api/admin/delivery-options/:id", requireAuth, async (c) => {
+  const id = c.req.param("id");
+  const body = await c.req.json().catch(() => null);
+  if (!body) return c.json({ error: "invalid payload" }, 400);
+  const now = new Date().toISOString();
+  if (body.is_default) {
+    // is_default はカテゴリ全体で1件のみにする
+    await c.env.DB.prepare("UPDATE delivery_options SET is_default = 0").run();
+  }
+  await c.env.DB.prepare(
+    `UPDATE delivery_options SET label=?, description=?, multiplier=?, is_default=?, active=?, sort_order=?, updated_at=? WHERE id=?`
+  )
+    .bind(
+      body.label,
+      body.description || "",
+      Number(body.multiplier) || 1,
+      body.is_default ? 1 : 0,
+      body.active === false ? 0 : 1,
+      Number(body.sort_order) || 0,
+      now,
+      id
+    )
+    .run();
+  return c.json({ ok: true });
+});
+
+app.delete("/api/admin/delivery-options/:id", requireAuth, async (c) => {
+  await c.env.DB.prepare("DELETE FROM delivery_options WHERE id = ?").bind(c.req.param("id")).run();
+  return c.json({ ok: true });
+});
+
+// ============================================================
+// キャンペーン設定（campaigns）
+// 同時に有効化できるのは1件のみ。新しく有効化すると他は自動的に無効化される。
+// ============================================================
+app.get("/api/campaigns/active", async (c) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const row: any = await c.env.DB.prepare(
+    `SELECT * FROM campaigns WHERE active = 1
+     AND (start_date IS NULL OR start_date = '' OR start_date <= ?)
+     AND (end_date IS NULL OR end_date = '' OR end_date >= ?)
+     ORDER BY updated_at DESC LIMIT 1`
+  )
+    .bind(today, today)
+    .first();
+  return c.json({ campaign: row || null });
+});
+
+app.get("/api/admin/campaigns", requireAuth, async (c) => {
+  const rows = await c.env.DB.prepare("SELECT * FROM campaigns ORDER BY created_at DESC").all();
+  return c.json({ campaigns: rows.results });
+});
+
+app.post("/api/admin/campaigns", requireAuth, async (c) => {
+  const body = await c.req.json().catch(() => null);
+  if (!body || !body.label) return c.json({ error: "label は必須です" }, 400);
+  const id = newCaseId("CP");
+  const now = new Date().toISOString();
+  if (body.active) {
+    await c.env.DB.prepare("UPDATE campaigns SET active = 0").run();
+  }
+  await c.env.DB.prepare(
+    `INSERT INTO campaigns (id, label, banner_text, discount_type, discount_value, category_id, start_date, end_date, active, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  )
+    .bind(
+      id,
+      body.label,
+      body.banner_text || "",
+      body.discount_type === "fixed" ? "fixed" : "percent",
+      Number(body.discount_value) || 0,
+      body.category_id || null,
+      body.start_date || null,
+      body.end_date || null,
+      body.active ? 1 : 0,
+      now,
+      now
+    )
+    .run();
+  return c.json({ ok: true, id });
+});
+
+app.put("/api/admin/campaigns/:id", requireAuth, async (c) => {
+  const id = c.req.param("id");
+  const body = await c.req.json().catch(() => null);
+  if (!body) return c.json({ error: "invalid payload" }, 400);
+  const now = new Date().toISOString();
+  if (body.active) {
+    await c.env.DB.prepare("UPDATE campaigns SET active = 0 WHERE id != ?").bind(id).run();
+  }
+  await c.env.DB.prepare(
+    `UPDATE campaigns SET label=?, banner_text=?, discount_type=?, discount_value=?, category_id=?, start_date=?, end_date=?, active=?, updated_at=? WHERE id=?`
+  )
+    .bind(
+      body.label,
+      body.banner_text || "",
+      body.discount_type === "fixed" ? "fixed" : "percent",
+      Number(body.discount_value) || 0,
+      body.category_id || null,
+      body.start_date || null,
+      body.end_date || null,
+      body.active ? 1 : 0,
+      now,
+      id
+    )
+    .run();
+  return c.json({ ok: true });
+});
+
+app.delete("/api/admin/campaigns/:id", requireAuth, async (c) => {
+  await c.env.DB.prepare("DELETE FROM campaigns WHERE id = ?").bind(c.req.param("id")).run();
+  return c.json({ ok: true });
 });
 
 // ============================================================
@@ -400,15 +759,44 @@ app.post("/api/estimates/send", async (c) => {
   const catInfo = CATEGORY_INFO[decoded.cat];
   if (!catInfo) return c.json({ error: "不明なカテゴリです" }, 400);
 
+  // この時点で案件（case）を作成し、ヒアリング未着手でも管理者ダッシュボードに
+  // 「新規受付」として表示されるようにする。ヒアリングシート送信時にはこの
+  // caseId を引き継いで更新する（重複した案件が作られないようにするため）。
+  const caseId = newCaseId("C");
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(
+    `INSERT INTO cases (id, category, status, customer_name, email, estimate_code, estimate_total, created_at, updated_at)
+     VALUES (?, ?, 'new', ?, ?, ?, ?, ?, ?)`
+  )
+    .bind(caseId, decoded.cat, name, email, code, decoded.total || 0, now, now)
+    .run();
+  await c.env.DB.prepare(
+    `INSERT INTO estimates (id, case_id, items, total_amount, created_at) VALUES (?, ?, ?, ?, ?)`
+  )
+    .bind(newId(), caseId, JSON.stringify(decoded), decoded.total || 0, now)
+    .run();
+
   const url = new URL(c.req.url);
   const origin = `${url.protocol}//${url.host}`;
   const quoteUrl = `${origin}/quote.html?code=${encodeURIComponent(code)}`;
-  const hearingUrl = `${origin}${catInfo.hearingUrl}?code=${encodeURIComponent(code)}`;
+  const hearingUrl = `${origin}${catInfo.hearingUrl}?code=${encodeURIComponent(code)}&caseId=${encodeURIComponent(caseId)}`;
   const total = decoded.total || 0;
   const low = formatYenJP(total * 0.9);
   const high = formatYenJP(total * 1.15);
 
   const fromAddr = c.env.MAIL_FROM || "quotes@example.com";
+  const emailSettings = await getEmailSettings(c.env.DB);
+
+  const signatureHtml = `
+    <p style="margin-top:20px;padding-top:16px;border-top:1px solid #e3e8ec;color:#1b2333;">
+      ${escapeHtml(emailSettings.signature_company)}<br />
+      担当：${escapeHtml(emailSettings.signature_name)}<br />
+      <a href="mailto:${escapeHtml(emailSettings.signature_email)}" style="color:#5c6b74;">${escapeHtml(emailSettings.signature_email)}</a>
+    </p>
+  `;
+  const noticeHtml = emailSettings.custom_notice
+    ? `<p style="margin-top:16px;padding:12px 14px;background:#f7efd6;border-radius:8px;color:#1b2333;">${escapeHtml(emailSettings.custom_notice).replace(/\n/g, "<br />")}</p>`
+    : "";
 
   // お客様向けメール
   const customerHtml = `
@@ -423,7 +811,9 @@ app.post("/api/estimates/send", async (c) => {
       <p><a href="${quoteUrl}" style="display:inline-block;background:#c9a227;color:#1b2333;padding:10px 20px;border-radius:999px;text-decoration:none;font-weight:bold;">御見積書を見る</a></p>
       <p>今後の進め方として、より正確なお見積もり・ご提案のために、下記よりヒアリングシートへのご記入をお願いしております。</p>
       <p><a href="${hearingUrl}" style="color:#c9a227;font-weight:bold;">ヒアリングシートに進む →</a></p>
-      <p style="margin-top:24px;color:#8a97a0;font-size:12px;">発行日時：${decoded.ts ? new Date(decoded.ts).toLocaleString("ja-JP") : "-"}<br />
+      ${noticeHtml}
+      ${signatureHtml}
+      <p style="margin-top:16px;color:#8a97a0;font-size:12px;">発行日時：${decoded.ts ? new Date(decoded.ts).toLocaleString("ja-JP") : "-"}<br />
       本メールは自動送信されています。心当たりのない場合は破棄してくださいませ。</p>
     </div>
   `;
@@ -455,7 +845,70 @@ app.post("/api/estimates/send", async (c) => {
     );
   }
 
-  return c.json({ ok: true });
+  return c.json({ ok: true, caseId });
+});
+
+app.post("/api/admin/cases/:id/send-formal-quote", requireAuth, async (c) => {
+  if (!c.env.RESEND_API_KEY) return c.json({ error: "メール送信機能が未設定です（RESEND_API_KEY）" }, 503);
+  const id = c.req.param("id");
+  const admin = c.get("admin");
+
+  const caseRow: any = await c.env.DB.prepare("SELECT * FROM cases WHERE id = ?").bind(id).first();
+  if (!caseRow) return c.json({ error: "案件が見つかりません" }, 404);
+  if (!caseRow.email) return c.json({ error: "お客様のメールアドレスが登録されていません" }, 400);
+  if (!caseRow.estimate_code) return c.json({ error: "この案件には見積もりコードがありません" }, 400);
+
+  const decoded = decodeEstimateCode(caseRow.estimate_code);
+  if (!decoded) return c.json({ error: "見積もりコードの解析に失敗しました" }, 400);
+  const catInfo = CATEGORY_INFO[caseRow.category];
+  if (!catInfo) return c.json({ error: "不明なカテゴリです" }, 400);
+
+  const url = new URL(c.req.url);
+  const origin = `${url.protocol}//${url.host}`;
+  const quoteUrl = `${origin}/quote.html?code=${encodeURIComponent(caseRow.estimate_code)}`;
+  const total = caseRow.estimate_total || decoded.total || 0;
+  const fromAddr = c.env.MAIL_FROM || "quotes@example.com";
+  const emailSettings = await getEmailSettings(c.env.DB);
+  const customerName = caseRow.customer_name || "お客様";
+
+  const signatureHtml = `
+    <p style="margin-top:20px;padding-top:16px;border-top:1px solid #e3e8ec;color:#1b2333;">
+      ${escapeHtml(emailSettings.signature_company)}<br />
+      担当：${escapeHtml(emailSettings.signature_name)}<br />
+      <a href="mailto:${escapeHtml(emailSettings.signature_email)}" style="color:#5c6b74;">${escapeHtml(emailSettings.signature_email)}</a>
+    </p>
+  `;
+  const noticeHtml = emailSettings.custom_notice
+    ? `<p style="margin-top:16px;padding:12px 14px;background:#f7efd6;border-radius:8px;color:#1b2333;">${escapeHtml(emailSettings.custom_notice).replace(/\n/g, "<br />")}</p>`
+    : "";
+
+  const html = `
+    <div style="font-family:sans-serif;line-height:1.7;color:#1b2333;">
+      <p>${escapeHtml(customerName)} 様</p>
+      <p>この度はヒアリングにご協力いただき、誠にありがとうございました。<br />
+      いただいた内容をもとに、正式な御見積書を作成いたしましたのでご確認くださいませ。</p>
+      <table style="border-collapse:collapse;margin:16px 0;">
+        <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">カテゴリ</td><td>${escapeHtml(catInfo.label)}</td></tr>
+        <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">御見積金額</td><td style="font-weight:bold;">${formatYenJP(total)}（税別）</td></tr>
+      </table>
+      <p><a href="${quoteUrl}" style="display:inline-block;background:#c9a227;color:#1b2333;padding:10px 20px;border-radius:999px;text-decoration:none;font-weight:bold;">正式な御見積書を見る</a></p>
+      ${noticeHtml}
+      ${signatureHtml}
+      <p style="margin-top:16px;color:#8a97a0;font-size:12px;">本メールは自動送信されています。心当たりのない場合は破棄してくださいませ。</p>
+    </div>
+  `;
+
+  await sendResendEmail(c.env.RESEND_API_KEY, fromAddr, [caseRow.email], `【Aster Systems】正式御見積書のご案内（${catInfo.label}）`, html);
+
+  const now = new Date().toISOString();
+  await c.env.DB.prepare("UPDATE cases SET status = 'quoted', updated_at = ? WHERE id = ?").bind(now, id).run();
+  await c.env.DB.prepare(
+    `INSERT INTO case_logs (id, case_id, note, status_before, status_after, admin_id) VALUES (?, ?, ?, ?, ?, ?)`
+  )
+    .bind(newId(), id, "正式な見積書をメール送信", caseRow.status, "quoted", admin.id)
+    .run();
+
+  return c.json({ ok: true, email: caseRow.email });
 });
 
 function escapeHtml(s: string): string {
