@@ -28,6 +28,11 @@ const SESSION_COOKIE = "ty_admin_session";
 const SESSION_DAYS = 7;
 const PBKDF2_ITERATIONS = 100000;
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// クライアント（hearing.js）が生成するrefCode（例: HR-20260714-AB12）の書式。
+// サーバー側でも検証し、不正な値をcases.id（主キー）やメール件名へ使わないようにする。
+const REF_CODE_PATTERN = /^[A-Z]{1,4}-\d{8}-[A-Z0-9]{4,8}$/;
+
 // ============================================================
 // パスワードハッシュ（Web Crypto / PBKDF2-SHA256）
 // ============================================================
@@ -137,9 +142,6 @@ app.post("/api/hearings", async (c) => {
     }
   }
 
-  // refCode はクライアント（hearing.js）が生成する想定値だが、サーバー側で書式を
-  // 検証せずに cases.id（主キー）やメール件名へ使うと、任意文字列の注入を許してしまう。
-  const REF_CODE_PATTERN = /^[A-Z]{1,4}-\d{8}-[A-Z0-9]{4,8}$/;
   const safeRefCode = typeof body.refCode === "string" && REF_CODE_PATTERN.test(body.refCode) ? body.refCode : null;
 
   if (!caseId) {
@@ -182,48 +184,43 @@ app.post("/api/hearings", async (c) => {
     }
   }
 
-  // ヒアリング内容の確認メール（顧客向け）。送信に失敗してもヒアリング自体の受付は成立させる。
-  const confirmedCaseId: string = caseId!;
-  if (c.env.RESEND_API_KEY && answerEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(answerEmail)) {
-    try {
-      const url = new URL(c.req.url);
-      const origin = `${url.protocol}//${url.host}`;
-      const mypageUrl = `${origin}/mypage.html`;
-      const catLabel = CATEGORY_INFO[body.category]?.label || body.category;
-      const fromAddr = c.env.MAIL_FROM || "quotes@example.com";
-      const emailSettings = await getEmailSettings(c.env.DB);
-      const signatureHtml = `
-        <p style="margin-top:20px;padding-top:16px;border-top:1px solid #e3e8ec;color:#1b2333;">
-          ${escapeHtml(emailSettings.signature_company)}<br />
-          担当：${escapeHtml(emailSettings.signature_name)}<br />
-          <a href="mailto:${escapeHtml(emailSettings.signature_email)}" style="color:#5c6b74;">${escapeHtml(emailSettings.signature_email)}</a>
-        </p>
-      `;
-      const customerHtml = `
-        <div style="font-family:sans-serif;line-height:1.7;color:#1b2333;">
-          <p>${escapeHtml(answerName || "お客")} 様</p>
-          <p>この度はAster Systemsへヒアリング内容をご送信いただき、誠にありがとうございます。<br />
-          以下の内容で受け付けいたしました。担当者より内容を確認のうえ、追ってご連絡いたします。</p>
-          <table style="border-collapse:collapse;margin:16px 0;">
-            <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">カテゴリ</td><td>${escapeHtml(catLabel)}</td></tr>
-            <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">受付番号</td><td style="font-weight:bold;">${escapeHtml(confirmedCaseId)}</td></tr>
-          </table>
-          <p><a href="${mypageUrl}" style="display:inline-block;background:#c9a227;color:#1b2333;padding:10px 20px;border-radius:999px;text-decoration:none;font-weight:bold;">マイページで進捗を確認する</a></p>
-          <p style="color:#8a97a0;font-size:12px;">マイページでは、上記の受付番号とこのメールアドレスでご確認いただけます。</p>
-          ${signatureHtml}
-          <p style="margin-top:16px;color:#8a97a0;font-size:12px;">本メールは自動送信されています。心当たりのない場合は破棄してくださいませ。</p>
-        </div>
-      `;
-      await sendResendEmail(
-        c.env.RESEND_API_KEY,
-        fromAddr,
-        [answerEmail],
-        `【Aster Systems】ヒアリング内容を受け付けました（受付番号：${confirmedCaseId}）`,
-        customerHtml
-      );
-    } catch (err) {
-      console.warn("ヒアリング確認メールの送信に失敗しました（ヒアリング自体の受付は継続）:", err);
-    }
+  // ヒアリング内容の確認メール（顧客向け）。DB書き込みは既に完了しているため、
+  // レスポンスは待たせずに返し、メール送信はバックグラウンドで行う
+  // （失敗してもヒアリング自体の受付は成立させる）。
+  if (c.env.RESEND_API_KEY && answerEmail && EMAIL_PATTERN.test(answerEmail)) {
+    const url = new URL(c.req.url);
+    const origin = `${url.protocol}//${url.host}`;
+    const mypageUrl = `${origin}/mypage.html`;
+    const catLabel = CATEGORY_INFO[body.category]?.label || body.category;
+    const fromAddr = c.env.MAIL_FROM || "quotes@example.com";
+    const finalCaseId: string = caseId!;
+
+    c.executionCtx.waitUntil(
+      (async () => {
+        const emailSettings = await getEmailSettings(c.env.DB);
+        const customerHtml = `
+          <div style="font-family:sans-serif;line-height:1.7;color:#1b2333;">
+            <p>${escapeHtml(answerName || "お客")} 様</p>
+            <p>この度はAster Systemsへヒアリング内容をご送信いただき、誠にありがとうございます。<br />
+            以下の内容で受け付けいたしました。担当者より内容を確認のうえ、追ってご連絡いたします。</p>
+            <table style="border-collapse:collapse;margin:16px 0;">
+              <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">カテゴリ</td><td>${escapeHtml(catLabel)}</td></tr>
+            </table>
+            ${buildMypageNoticeHtml(finalCaseId, mypageUrl)}
+            ${buildSignatureHtml(emailSettings)}
+            <p style="margin-top:16px;color:#8a97a0;font-size:12px;">本メールは自動送信されています。心当たりのない場合は破棄してくださいませ。</p>
+          </div>
+        `;
+        await sendEmailSafe(
+          c.env.RESEND_API_KEY,
+          fromAddr,
+          [answerEmail],
+          `【Aster Systems】ヒアリング内容を受け付けました（受付番号：${finalCaseId}）`,
+          customerHtml,
+          "ヒアリング確認メールの送信に失敗しました（ヒアリング自体の受付は継続）:"
+        );
+      })()
+    );
   }
 
   return c.json({ ok: true, caseId, refCode: body.refCode || null });
@@ -796,6 +793,51 @@ async function sendResendEmail(
   return res.json();
 }
 
+// 顧客向けメールの送信失敗を握りつぶし、警告ログのみ残す（受付・登録自体は継続させるため）。
+async function sendEmailSafe(
+  apiKey: string,
+  from: string,
+  to: string[],
+  subject: string,
+  html: string,
+  warnMessage: string,
+  replyTo?: string
+): Promise<void> {
+  try {
+    await sendResendEmail(apiKey, from, to, subject, html, replyTo);
+  } catch (err) {
+    console.warn(warnMessage, err);
+  }
+}
+
+type EmailSignatureSettings = { signature_company: string; signature_name: string; signature_email: string };
+
+function buildSignatureHtml(emailSettings: EmailSignatureSettings): string {
+  return `
+    <p style="margin-top:20px;padding-top:16px;border-top:1px solid #e3e8ec;color:#1b2333;">
+      ${escapeHtml(emailSettings.signature_company)}<br />
+      担当：${escapeHtml(emailSettings.signature_name)}<br />
+      <a href="mailto:${escapeHtml(emailSettings.signature_email)}" style="color:#5c6b74;">${escapeHtml(emailSettings.signature_email)}</a>
+    </p>
+  `;
+}
+
+function buildCustomNoticeHtml(customNotice: string): string {
+  return customNotice
+    ? `<p style="margin-top:16px;padding:12px 14px;background:#f7efd6;border-radius:8px;color:#1b2333;">${escapeHtml(customNotice).replace(/\n/g, "<br />")}</p>`
+    : "";
+}
+
+// 見積り・ヒアリング確認メール、正式見積書メールに共通で載せる「受付番号＋マイページ導線」ブロック。
+function buildMypageNoticeHtml(caseId: string, mypageUrl: string): string {
+  return `
+    <p style="margin-top:16px;padding:12px 14px;background:#f5f6f8;border-radius:8px;font-size:13px;">
+      受付番号：<strong>${escapeHtml(caseId)}</strong><br />
+      この受付番号とご登録のメールアドレスで、<a href="${mypageUrl}" style="color:#c9a227;">マイページ</a>から進捗を確認できます。
+    </p>
+  `;
+}
+
 app.post("/api/estimates/send", async (c) => {
   if (!c.env.RESEND_API_KEY) return c.json({ error: "メール送信機能が未設定です（RESEND_API_KEY）" }, 503);
 
@@ -803,7 +845,7 @@ app.post("/api/estimates/send", async (c) => {
   const code: string = body?.code;
   const name: string = (body?.name || "").trim();
   const email: string = (body?.email || "").trim();
-  if (!code || !name || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!code || !name || !email || !EMAIL_PATTERN.test(email)) {
     return c.json({ error: "code, name, email は必須です" }, 400);
   }
 
@@ -839,79 +881,76 @@ app.post("/api/estimates/send", async (c) => {
   const high = formatYenJP(total * 1.15);
 
   const fromAddr = c.env.MAIL_FROM || "quotes@example.com";
-  const emailSettings = await getEmailSettings(c.env.DB);
 
-  const signatureHtml = `
-    <p style="margin-top:20px;padding-top:16px;border-top:1px solid #e3e8ec;color:#1b2333;">
-      ${escapeHtml(emailSettings.signature_company)}<br />
-      担当：${escapeHtml(emailSettings.signature_name)}<br />
-      <a href="mailto:${escapeHtml(emailSettings.signature_email)}" style="color:#5c6b74;">${escapeHtml(emailSettings.signature_email)}</a>
-    </p>
-  `;
-  const noticeHtml = emailSettings.custom_notice
-    ? `<p style="margin-top:16px;padding:12px 14px;background:#f7efd6;border-radius:8px;color:#1b2333;">${escapeHtml(emailSettings.custom_notice).replace(/\n/g, "<br />")}</p>`
-    : "";
+  // メール送信はDB登録完了後にバックグラウンドで行い、レスポンス（caseId等）は待たせない。
+  // 失敗しても見積もり自体の受付・DB登録は既に完了しているため影響しない。
+  c.executionCtx.waitUntil(
+    (async () => {
+      const emailSettings = await getEmailSettings(c.env.DB);
+      const signatureHtml = buildSignatureHtml(emailSettings);
+      const noticeHtml = buildCustomNoticeHtml(emailSettings.custom_notice);
 
-  // お客様向けメール
-  const customerHtml = `
-    <div style="font-family:sans-serif;line-height:1.7;color:#1b2333;">
-      <p>${escapeHtml(name)} 様</p>
-      <p>この度はAster Systemsへお見積もりのご依頼をいただき、誠にありがとうございます。<br />
-      以下の内容でお見積もりを作成いたしましたので、ご確認くださいませ。</p>
-      <table style="border-collapse:collapse;margin:16px 0;">
-        <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">カテゴリ</td><td>${escapeHtml(catInfo.label)}</td></tr>
-        <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">概算費用</td><td style="font-weight:bold;">${low} 〜 ${high}</td></tr>
-      </table>
-      <p><a href="${quoteUrl}" style="display:inline-block;background:#c9a227;color:#1b2333;padding:10px 20px;border-radius:999px;text-decoration:none;font-weight:bold;">御見積書を見る</a></p>
-      <p>今後の進め方として、より正確なお見積もり・ご提案のために、下記よりヒアリングシートへのご記入をお願いしております。</p>
-      <p><a href="${hearingUrl}" style="color:#c9a227;font-weight:bold;">ヒアリングシートに進む →</a></p>
-      <p style="margin-top:16px;padding:12px 14px;background:#f5f6f8;border-radius:8px;font-size:13px;">
-        受付番号：<strong>${escapeHtml(caseId)}</strong><br />
-        この受付番号とこのメールアドレスで、<a href="${mypageUrl}" style="color:#c9a227;">マイページ</a>から今後の進捗を確認できます。
-      </p>
-      ${noticeHtml}
-      ${signatureHtml}
-      <p style="margin-top:16px;color:#8a97a0;font-size:12px;">発行日時：${decoded.ts ? new Date(decoded.ts).toLocaleString("ja-JP") : "-"}<br />
-      本メールは自動送信されています。心当たりのない場合は破棄してくださいませ。</p>
-    </div>
-  `;
+      const customerHtml = `
+        <div style="font-family:sans-serif;line-height:1.7;color:#1b2333;">
+          <p>${escapeHtml(name)} 様</p>
+          <p>この度はAster Systemsへお見積もりのご依頼をいただき、誠にありがとうございます。<br />
+          以下の内容でお見積もりを作成いたしましたので、ご確認くださいませ。</p>
+          <table style="border-collapse:collapse;margin:16px 0;">
+            <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">カテゴリ</td><td>${escapeHtml(catInfo.label)}</td></tr>
+            <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">概算費用</td><td style="font-weight:bold;">${low} 〜 ${high}</td></tr>
+          </table>
+          <p><a href="${quoteUrl}" style="display:inline-block;background:#c9a227;color:#1b2333;padding:10px 20px;border-radius:999px;text-decoration:none;font-weight:bold;">御見積書を見る</a></p>
+          <p>今後の進め方として、より正確なお見積もり・ご提案のために、下記よりヒアリングシートへのご記入をお願いしております。</p>
+          <p><a href="${hearingUrl}" style="color:#c9a227;font-weight:bold;">ヒアリングシートに進む →</a></p>
+          ${buildMypageNoticeHtml(caseId, mypageUrl)}
+          ${noticeHtml}
+          ${signatureHtml}
+          <p style="margin-top:16px;color:#8a97a0;font-size:12px;">発行日時：${decoded.ts ? new Date(decoded.ts).toLocaleString("ja-JP") : "-"}<br />
+          本メールは自動送信されています。心当たりのない場合は破棄してくださいませ。</p>
+        </div>
+      `;
 
-  // メール送信に失敗しても、既にDBへ登録済みのcaseId・見積もりコードは
-  // 必ずクライアントへ返す（受付番号・マイページ導線を案内できなくなるのを防ぐため）。
-  try {
-    await sendResendEmail(c.env.RESEND_API_KEY, fromAddr, [email], `【Aster Systems】御見積書のご案内（${catInfo.label}）`, customerHtml);
-  } catch (err) {
-    console.warn("見積り確認メールの送信に失敗しました（見積もり自体の受付は継続）:", err);
-  }
+      const tasks = [
+        sendEmailSafe(
+          c.env.RESEND_API_KEY,
+          fromAddr,
+          [email],
+          `【Aster Systems】御見積書のご案内（${catInfo.label}）`,
+          customerHtml,
+          "見積り確認メールの送信に失敗しました（見積もり自体の受付は継続）:"
+        ),
+      ];
 
-  // 社内通知メール
-  if (c.env.COMPANY_NOTIFY_EMAIL) {
-    const staffHtml = `
-      <div style="font-family:sans-serif;line-height:1.7;color:#1b2333;">
-        <p>見積もりシミュレーターから新しいお見積もりが作成されました。</p>
-        <table style="border-collapse:collapse;margin:16px 0;">
-          <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">お名前</td><td>${escapeHtml(name)}</td></tr>
-          <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">メール</td><td>${escapeHtml(email)}</td></tr>
-          <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">カテゴリ</td><td>${escapeHtml(catInfo.label)}</td></tr>
-          <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">概算費用</td><td>${low} 〜 ${high}</td></tr>
-        </table>
-        <p><a href="${quoteUrl}">御見積書を見る</a></p>
-        <p style="color:#8a97a0;font-size:12px;">ヒアリングシート送信後は管理者ダッシュボード（/admin）で確認できます。</p>
-      </div>
-    `;
-    try {
-      await sendResendEmail(
-        c.env.RESEND_API_KEY,
-        fromAddr,
-        [c.env.COMPANY_NOTIFY_EMAIL],
-        `【見積もり通知】${escapeHtml(name)} 様（${catInfo.label}）`,
-        staffHtml,
-        email
-      );
-    } catch (err) {
-      console.warn("社内通知メールの送信に失敗しました（見積もり自体の受付は継続）:", err);
-    }
-  }
+      if (c.env.COMPANY_NOTIFY_EMAIL) {
+        const staffHtml = `
+          <div style="font-family:sans-serif;line-height:1.7;color:#1b2333;">
+            <p>見積もりシミュレーターから新しいお見積もりが作成されました。</p>
+            <table style="border-collapse:collapse;margin:16px 0;">
+              <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">お名前</td><td>${escapeHtml(name)}</td></tr>
+              <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">メール</td><td>${escapeHtml(email)}</td></tr>
+              <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">カテゴリ</td><td>${escapeHtml(catInfo.label)}</td></tr>
+              <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">概算費用</td><td>${low} 〜 ${high}</td></tr>
+            </table>
+            <p><a href="${quoteUrl}">御見積書を見る</a></p>
+            <p style="color:#8a97a0;font-size:12px;">ヒアリングシート送信後は管理者ダッシュボード（/admin）で確認できます。</p>
+          </div>
+        `;
+        tasks.push(
+          sendEmailSafe(
+            c.env.RESEND_API_KEY,
+            fromAddr,
+            [c.env.COMPANY_NOTIFY_EMAIL],
+            `【見積もり通知】${escapeHtml(name)} 様（${catInfo.label}）`,
+            staffHtml,
+            "社内通知メールの送信に失敗しました（見積もり自体の受付は継続）:",
+            email
+          )
+        );
+      }
+
+      await Promise.all(tasks);
+    })()
+  );
 
   return c.json({ ok: true, caseId });
 });
@@ -934,21 +973,11 @@ app.post("/api/admin/cases/:id/send-formal-quote", requireAuth, async (c) => {
   const url = new URL(c.req.url);
   const origin = `${url.protocol}//${url.host}`;
   const quoteUrl = `${origin}/quote.html?code=${encodeURIComponent(caseRow.estimate_code)}`;
+  const mypageUrl = `${origin}/mypage.html`;
   const total = caseRow.estimate_total || decoded.total || 0;
   const fromAddr = c.env.MAIL_FROM || "quotes@example.com";
   const emailSettings = await getEmailSettings(c.env.DB);
   const customerName = caseRow.customer_name || "お客様";
-
-  const signatureHtml = `
-    <p style="margin-top:20px;padding-top:16px;border-top:1px solid #e3e8ec;color:#1b2333;">
-      ${escapeHtml(emailSettings.signature_company)}<br />
-      担当：${escapeHtml(emailSettings.signature_name)}<br />
-      <a href="mailto:${escapeHtml(emailSettings.signature_email)}" style="color:#5c6b74;">${escapeHtml(emailSettings.signature_email)}</a>
-    </p>
-  `;
-  const noticeHtml = emailSettings.custom_notice
-    ? `<p style="margin-top:16px;padding:12px 14px;background:#f7efd6;border-radius:8px;color:#1b2333;">${escapeHtml(emailSettings.custom_notice).replace(/\n/g, "<br />")}</p>`
-    : "";
 
   const html = `
     <div style="font-family:sans-serif;line-height:1.7;color:#1b2333;">
@@ -960,8 +989,9 @@ app.post("/api/admin/cases/:id/send-formal-quote", requireAuth, async (c) => {
         <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">御見積金額</td><td style="font-weight:bold;">${formatYenJP(total)}（税別）</td></tr>
       </table>
       <p><a href="${quoteUrl}" style="display:inline-block;background:#c9a227;color:#1b2333;padding:10px 20px;border-radius:999px;text-decoration:none;font-weight:bold;">正式な御見積書を見る</a></p>
-      ${noticeHtml}
-      ${signatureHtml}
+      ${buildMypageNoticeHtml(id!, mypageUrl)}
+      ${buildCustomNoticeHtml(emailSettings.custom_notice)}
+      ${buildSignatureHtml(emailSettings)}
       <p style="margin-top:16px;color:#8a97a0;font-size:12px;">本メールは自動送信されています。心当たりのない場合は破棄してくださいませ。</p>
     </div>
   `;

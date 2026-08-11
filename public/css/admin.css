@@ -104,20 +104,13 @@ button { font-family: inherit; }
 .badge.won { background: #e2f6ea; color: #1a7a3c; }
 .badge.lost { background: #fbe8e6; color: #a3382c; }
 
-/* ---------------- Case detail (modal) ---------------- */
-#case-modal {
+/* ---------------- モーダル共通（案件詳細・メール設定・料金設定） ---------------- */
+#case-modal, #email-settings-modal, #pricing-settings-modal {
   position: fixed; inset: 0; background: rgba(27,35,51,0.45);
   display: none; align-items: flex-start; justify-content: center;
   padding: clamp(16px, 5vw, 40px) 16px; overflow-y: auto; z-index: 50;
 }
-#case-modal.is-open { display: flex; }
-
-#email-settings-modal {
-  position: fixed; inset: 0; background: rgba(27,35,51,0.45);
-  display: none; align-items: flex-start; justify-content: center;
-  padding: clamp(16px, 5vw, 40px) 16px; overflow-y: auto; z-index: 50;
-}
-#email-settings-modal.is-open { display: flex; }
+#case-modal.is-open, #email-settings-modal.is-open, #pricing-settings-modal.is-open { display: flex; }
 
 .f-label { display: block; font-size: var(--step--1); font-weight: 700; margin: 0 0 6px; color: var(--ink); }
 
@@ -185,12 +178,6 @@ button { font-family: inherit; }
 .log-list li:last-child { border-bottom: none; }
 
 /* ---------------- 料金・キャンペーン設定モーダル ---------------- */
-#pricing-settings-modal {
-  position: fixed; inset: 0; background: rgba(27,35,51,0.45);
-  display: none; align-items: flex-start; justify-content: center;
-  padding: clamp(16px, 5vw, 40px) 16px; overflow-y: auto; z-index: 50;
-}
-#pricing-settings-modal.is-open { display: flex; }
 .modal-card--wide { max-width: 780px; }
 
 .tab-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }

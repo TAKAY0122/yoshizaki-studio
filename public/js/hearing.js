@@ -202,7 +202,6 @@ function initDraftAutosave(config, form) {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => saveDraft(config), 600);
   });
-  form.addEventListener("change", () => saveDraft(config));
 }
 
 function initAiAssist(config) {
