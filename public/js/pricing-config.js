@@ -3,8 +3,9 @@
    見積もりシミュレーター 料金ロジック設定（人日ベース）
    ------------------------------------------------------------
    各項目は「人日単価（rate）× 稼働日数（days）＝ 金額（price）」で構成。
-   rate/days は free_estimator_料金表.xlsx の推奨価格を基準に、
-   カテゴリごとの標準人日単価から逆算した目安値です。
+   rate はカテゴリ単位の目安値（2026-08-11、フリーランス/制作会社の
+   公開相場情報をもとに再調整。詳細は .claude/memory/decisions.md 参照）。
+   days は項目ごとの想定稼働日数。
    実際の座組み（アサインするメンバーの単価）が確定したら、
    カテゴリ単位・項目単位どちらでも rate を調整してください。
    ============================================================ */
@@ -114,26 +115,26 @@ const CATEGORIES = [
     emoji: "🎨",
     badge: "#fdecf5",
     hearingUrl: "/hearing_design.html",
-    dailyRate: 35000,
+    dailyRate: 45000,
     plans: [
-      item("logo-simple", "ロゴデザイン（シンプル）", 35000, 0.8),
-      item("logo-original", "ロゴデザイン（本格オリジナル）", 35000, 2),
-      item("meishi", "名刺デザイン", 35000, 0.5),
-      item("flyer", "チラシ・フライヤー（A4）", 35000, 0.8),
-      item("vi", "ブランドVI設計（一式）", 35000, 3.9),
-      item("pamphlet", "会社案内パンフレット（8P程度）", 35000, 3),
-      item("exhibition", "展示会・イベント用ブース装飾デザイン", 35000, 2.5),
+      item("logo-simple", "ロゴデザイン（シンプル）", 45000, 0.8),
+      item("logo-original", "ロゴデザイン（本格オリジナル）", 45000, 2),
+      item("meishi", "名刺デザイン", 45000, 0.5),
+      item("flyer", "チラシ・フライヤー（A4）", 45000, 0.8),
+      item("vi", "ブランドVI設計（一式）", 45000, 3.9),
+      item("pamphlet", "会社案内パンフレット（8P程度）", 45000, 3),
+      item("exhibition", "展示会・イベント用ブース装飾デザイン", 45000, 2.5),
     ],
     addons: [
-      { id: "color-variant", type: "checkbox", ...item("color-variant", "カラーバリエーション追加（+2色）", 35000, 0.25) },
-      { id: "revisions", type: "checkbox", ...item("revisions", "修正回数追加（+3回）", 35000, 0.25) },
-      { id: "print-data", type: "checkbox", ...item("print-data", "印刷用データ入稿対応（ai/PDF）", 35000, 0.4) },
-      { id: "sns-set", type: "checkbox", ...item("sns-set", "SNSアイコン・バナーセット", 35000, 1) },
-      { id: "guideline", type: "checkbox", ...item("guideline", "ブランドガイドライン作成", 35000, 2.5) },
-      { id: "stationery", type: "checkbox", ...item("stationery", "封筒・レターヘッドデザイン", 35000, 0.5) },
-      { id: "package", type: "checkbox", ...item("package", "商品パッケージデザイン", 35000, 0.9) },
-      { id: "photo", type: "checkbox", ...item("photo", "商品・イメージ写真撮影ディレクション", 35000, 1) },
-      { id: "illustration", type: "checkbox", ...item("illustration", "オリジナルイラスト制作", 35000, 1.2) },
+      { id: "color-variant", type: "checkbox", ...item("color-variant", "カラーバリエーション追加（+2色）", 45000, 0.25) },
+      { id: "revisions", type: "checkbox", ...item("revisions", "修正回数追加（+3回）", 45000, 0.25) },
+      { id: "print-data", type: "checkbox", ...item("print-data", "印刷用データ入稿対応（ai/PDF）", 45000, 0.4) },
+      { id: "sns-set", type: "checkbox", ...item("sns-set", "SNSアイコン・バナーセット", 45000, 1) },
+      { id: "guideline", type: "checkbox", ...item("guideline", "ブランドガイドライン作成", 45000, 2.5) },
+      { id: "stationery", type: "checkbox", ...item("stationery", "封筒・レターヘッドデザイン", 45000, 0.5) },
+      { id: "package", type: "checkbox", ...item("package", "商品パッケージデザイン", 45000, 0.9) },
+      { id: "photo", type: "checkbox", ...item("photo", "商品・イメージ写真撮影ディレクション", 45000, 1) },
+      { id: "illustration", type: "checkbox", ...item("illustration", "オリジナルイラスト制作", 45000, 1.2) },
     ],
     recurring: [],
   },
