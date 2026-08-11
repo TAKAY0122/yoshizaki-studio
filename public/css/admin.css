@@ -26,11 +26,11 @@ button { font-family: inherit; }
 .login-card {
   width: 100%;
   max-width: 380px;
-  background: var(--card);
+  background: linear-gradient(165deg, var(--card) 0%, var(--card-soft) 100%);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-lift);
-  padding: 32px 28px;
+  padding: var(--space-5) var(--space-4);
 }
 .login-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
 .login-brand img { height: 26px; width: 26px; }
@@ -44,10 +44,13 @@ button { font-family: inherit; }
 }
 .login-card input:focus { outline: none; border-color: var(--gold); background: var(--card); }
 .login-btn {
-  width: 100%; padding: 12px; border: none; border-radius: 999px;
+  width: 100%; padding: 13px; border: none; border-radius: var(--radius-pill);
   background: var(--gold); color: var(--gold-ink); font-weight: 700; font-size: var(--step-0);
   cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
+.login-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
 .login-error { color: var(--danger); font-size: var(--step--1); margin: -6px 0 12px; min-height: 1.2em; }
 .login-note { font-size: var(--step--1); color: var(--ink-faint); margin-top: 14px; text-align: center; }
 
@@ -82,7 +85,8 @@ button { font-family: inherit; }
   font-size: var(--step--1); min-width: 200px; background: var(--card); color: var(--ink);
 }
 
-.case-table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; }
+.table-scroll { overflow-x: auto; border-radius: var(--radius-card); box-shadow: var(--shadow-card); -webkit-overflow-scrolling: touch; }
+.case-table { width: 100%; min-width: 640px; border-collapse: collapse; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; }
 .case-table th {
   text-align: left; font-size: var(--step--1); color: var(--ink-soft); font-weight: 700;
   background: var(--bg); padding: 10px 14px; border-bottom: 1px solid var(--border);
@@ -104,14 +108,14 @@ button { font-family: inherit; }
 #case-modal {
   position: fixed; inset: 0; background: rgba(27,35,51,0.45);
   display: none; align-items: flex-start; justify-content: center;
-  padding: 40px 16px; overflow-y: auto; z-index: 50;
+  padding: clamp(16px, 5vw, 40px) 16px; overflow-y: auto; z-index: 50;
 }
 #case-modal.is-open { display: flex; }
 
 #email-settings-modal {
   position: fixed; inset: 0; background: rgba(27,35,51,0.45);
   display: none; align-items: flex-start; justify-content: center;
-  padding: 40px 16px; overflow-y: auto; z-index: 50;
+  padding: clamp(16px, 5vw, 40px) 16px; overflow-y: auto; z-index: 50;
 }
 #email-settings-modal.is-open { display: flex; }
 
@@ -146,7 +150,8 @@ button { font-family: inherit; }
 .doc-btn:disabled { opacity: 0.5; cursor: default; }
 .modal-card {
   background: var(--card); border-radius: var(--radius-card); max-width: 640px; width: 100%;
-  padding: 28px; box-shadow: var(--shadow-lift);
+  padding: clamp(18px, 4vw, 28px); box-shadow: var(--shadow-lift);
+  max-height: 90vh; overflow-y: auto;
 }
 .modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
 .modal-head h2 { font-family: var(--font-display); font-size: var(--step-1); margin: 0 0 4px; }
@@ -183,7 +188,7 @@ button { font-family: inherit; }
 #pricing-settings-modal {
   position: fixed; inset: 0; background: rgba(27,35,51,0.45);
   display: none; align-items: flex-start; justify-content: center;
-  padding: 40px 16px; overflow-y: auto; z-index: 50;
+  padding: clamp(16px, 5vw, 40px) 16px; overflow-y: auto; z-index: 50;
 }
 #pricing-settings-modal.is-open { display: flex; }
 .modal-card--wide { max-width: 780px; }
@@ -229,3 +234,15 @@ button { font-family: inherit; }
 .checkbox-list label { display: flex; align-items: center; gap: 6px; }
 
 .inline-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+
+/* ---------------- スマホ向け調整 ---------------- */
+@media (max-width: 640px) {
+  .dash-header .who { display: none; }
+  .search-input { margin-left: 0; width: 100%; }
+  .dash-toolbar { gap: 8px; }
+  .status-filter { padding: 6px 12px; font-size: 12px; }
+  .modal-head h2 { font-size: var(--step-0); }
+  .doc-actions { flex-direction: column; }
+  .doc-actions .doc-btn { width: 100%; }
+  .inline-row { grid-template-columns: 1fr; }
+}

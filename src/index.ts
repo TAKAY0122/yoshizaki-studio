@@ -173,6 +173,50 @@ app.post("/api/hearings", async (c) => {
     }
   }
 
+  // ヒアリング内容の確認メール（顧客向け）。送信に失敗してもヒアリング自体の受付は成立させる。
+  const confirmedCaseId: string = caseId!;
+  if (c.env.RESEND_API_KEY && answerEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(answerEmail)) {
+    try {
+      const url = new URL(c.req.url);
+      const origin = `${url.protocol}//${url.host}`;
+      const mypageUrl = `${origin}/mypage.html`;
+      const catLabel = CATEGORY_INFO[body.category]?.label || body.category;
+      const fromAddr = c.env.MAIL_FROM || "quotes@example.com";
+      const emailSettings = await getEmailSettings(c.env.DB);
+      const signatureHtml = `
+        <p style="margin-top:20px;padding-top:16px;border-top:1px solid #e3e8ec;color:#1b2333;">
+          ${escapeHtml(emailSettings.signature_company)}<br />
+          担当：${escapeHtml(emailSettings.signature_name)}<br />
+          <a href="mailto:${escapeHtml(emailSettings.signature_email)}" style="color:#5c6b74;">${escapeHtml(emailSettings.signature_email)}</a>
+        </p>
+      `;
+      const customerHtml = `
+        <div style="font-family:sans-serif;line-height:1.7;color:#1b2333;">
+          <p>${escapeHtml(answerName || "お客")} 様</p>
+          <p>この度はAster Systemsへヒアリング内容をご送信いただき、誠にありがとうございます。<br />
+          以下の内容で受け付けいたしました。担当者より内容を確認のうえ、追ってご連絡いたします。</p>
+          <table style="border-collapse:collapse;margin:16px 0;">
+            <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">カテゴリ</td><td>${escapeHtml(catLabel)}</td></tr>
+            <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">受付番号</td><td style="font-weight:bold;">${escapeHtml(confirmedCaseId)}</td></tr>
+          </table>
+          <p><a href="${mypageUrl}" style="display:inline-block;background:#c9a227;color:#1b2333;padding:10px 20px;border-radius:999px;text-decoration:none;font-weight:bold;">マイページで進捗を確認する</a></p>
+          <p style="color:#8a97a0;font-size:12px;">マイページでは、上記の受付番号とこのメールアドレスでご確認いただけます。</p>
+          ${signatureHtml}
+          <p style="margin-top:16px;color:#8a97a0;font-size:12px;">本メールは自動送信されています。心当たりのない場合は破棄してくださいませ。</p>
+        </div>
+      `;
+      await sendResendEmail(
+        c.env.RESEND_API_KEY,
+        fromAddr,
+        [answerEmail],
+        `【Aster Systems】ヒアリング内容を受け付けました（受付番号：${confirmedCaseId}）`,
+        customerHtml
+      );
+    } catch (err) {
+      console.warn("ヒアリング確認メールの送信に失敗しました（ヒアリング自体の受付は継続）:", err);
+    }
+  }
+
   return c.json({ ok: true, caseId, refCode: body.refCode || null });
 });
 
@@ -780,6 +824,7 @@ app.post("/api/estimates/send", async (c) => {
   const origin = `${url.protocol}//${url.host}`;
   const quoteUrl = `${origin}/quote.html?code=${encodeURIComponent(code)}`;
   const hearingUrl = `${origin}${catInfo.hearingUrl}?code=${encodeURIComponent(code)}&caseId=${encodeURIComponent(caseId)}`;
+  const mypageUrl = `${origin}/mypage.html`;
   const total = decoded.total || 0;
   const low = formatYenJP(total * 0.9);
   const high = formatYenJP(total * 1.15);
@@ -811,6 +856,10 @@ app.post("/api/estimates/send", async (c) => {
       <p><a href="${quoteUrl}" style="display:inline-block;background:#c9a227;color:#1b2333;padding:10px 20px;border-radius:999px;text-decoration:none;font-weight:bold;">御見積書を見る</a></p>
       <p>今後の進め方として、より正確なお見積もり・ご提案のために、下記よりヒアリングシートへのご記入をお願いしております。</p>
       <p><a href="${hearingUrl}" style="color:#c9a227;font-weight:bold;">ヒアリングシートに進む →</a></p>
+      <p style="margin-top:16px;padding:12px 14px;background:#f5f6f8;border-radius:8px;font-size:13px;">
+        受付番号：<strong>${escapeHtml(caseId)}</strong><br />
+        この受付番号とこのメールアドレスで、<a href="${mypageUrl}" style="color:#c9a227;">マイページ</a>から今後の進捗を確認できます。
+      </p>
       ${noticeHtml}
       ${signatureHtml}
       <p style="margin-top:16px;color:#8a97a0;font-size:12px;">発行日時：${decoded.ts ? new Date(decoded.ts).toLocaleString("ja-JP") : "-"}<br />

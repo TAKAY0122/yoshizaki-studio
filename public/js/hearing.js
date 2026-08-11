@@ -55,7 +55,7 @@ function renderEstimateBanner() {
   banner.hidden = false;
   banner.innerHTML = `
     <div class="banner-head">
-      <span>🔗 見積もりシミュレーターの内容を引き継いでいます</span>
+      <span>見積もりシミュレーターの内容を引き継いでいます</span>
       <span class="banner-total">${formatYen(summary.total)} 〜</span>
     </div>
     <ul class="banner-lines">${summary.lines.map((l) => `<li>${l}</li>`).join("")}</ul>
@@ -134,6 +134,77 @@ function collectFormData(config) {
   return data;
 }
 
+/* ---------------- 下書き自動保存（離脱防止） ---------------- */
+function draftKey() {
+  return `hearing-draft-${window.HEARING_CATEGORY}`;
+}
+
+function saveDraft(config) {
+  try {
+    const data = collectFormData(config);
+    const hasContent = Object.values(data).some((v) => v && String(v).trim());
+    if (!hasContent) return;
+    localStorage.setItem(draftKey(), JSON.stringify({ data, savedAt: Date.now() }));
+  } catch (e) {
+    // localStorageが使えない環境（プライベートブラウズ等）では何もしない
+  }
+}
+
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem(draftKey());
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function clearDraft() {
+  try {
+    localStorage.removeItem(draftKey());
+  } catch (e) {
+    // ignore
+  }
+}
+
+function restoreFormData(config, data) {
+  config.sections.forEach((sec) => {
+    sec.fields.forEach((f) => {
+      const value = data[f.id];
+      if (!value) return;
+      if (f.type === "radio") {
+        const input = document.querySelector(`input[name="${f.id}"][value="${CSS.escape(String(value))}"]`);
+        if (input) input.checked = true;
+      } else {
+        const el = document.getElementById(`f_${f.id}`);
+        if (el) el.value = value;
+      }
+    });
+  });
+}
+
+function initDraftAutosave(config, form) {
+  const draft = loadDraft();
+  if (draft && draft.data) {
+    restoreFormData(config, draft.data);
+    const notice = document.createElement("div");
+    notice.className = "draft-notice";
+    notice.innerHTML = `前回途中まで入力した内容を復元しました。<button type="button" class="draft-clear-btn">入力をクリアする</button>`;
+    document.getElementById("form-sections").insertAdjacentElement("beforebegin", notice);
+    notice.querySelector(".draft-clear-btn").addEventListener("click", () => {
+      clearDraft();
+      location.reload();
+    });
+  }
+
+  let saveTimer = null;
+  form.addEventListener("input", () => {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => saveDraft(config), 600);
+  });
+  form.addEventListener("change", () => saveDraft(config));
+}
+
 function initAiAssist(config) {
   const btn = document.getElementById("ai-assist-btn");
   const resultEl = document.getElementById("ai-assist-result");
@@ -142,7 +213,7 @@ function initAiAssist(config) {
   btn.addEventListener("click", async () => {
     btn.disabled = true;
     const originalText = btn.textContent;
-    btn.textContent = "📝 チェック中…";
+    btn.textContent = "チェック中…";
     resultEl.hidden = true;
 
     const answers = collectFormData(config);
@@ -179,6 +250,7 @@ function initHearingForm() {
   const form = document.getElementById("hearing-form");
   const successPanel = document.getElementById("success-panel");
   const refCodeEl = document.getElementById("ref-code");
+  initDraftAutosave(config, form);
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -218,6 +290,7 @@ function initHearingForm() {
       console.warn("ヒアリング送信APIへの保存に失敗しました（ローカル受付表示のみ継続）:", err);
     }
 
+    clearDraft();
     form.hidden = true;
     document.getElementById("estimate-banner").hidden = true;
     successPanel.hidden = false;

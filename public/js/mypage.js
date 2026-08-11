@@ -77,7 +77,7 @@ async function doLookup() {
     els.estimate.textContent = data.latestEstimateTotal ? `${formatYen(data.latestEstimateTotal)} 〜` : "算出中／未算出";
 
     els.quoteLink.innerHTML = data.case.estimate_code
-      ? `<a href="/quote.html?code=${encodeURIComponent(data.case.estimate_code)}">📄 見積書を見る</a>`
+      ? `<a href="/quote.html?code=${encodeURIComponent(data.case.estimate_code)}">見積書を見る →</a>`
       : "";
 
     els.lookupCard.hidden = true;

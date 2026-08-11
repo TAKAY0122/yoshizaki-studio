@@ -25,22 +25,24 @@
   </header>
 
   <main>
-    <section class="hero wrap">
-      <p class="eyebrow">Estimate Simulator</p>
-      <h1>お見積もりシミュレーター</h1>
-      <p class="lede">制作カテゴリと仕様を選ぶだけで、概算費用をその場で算出します。算出後に発行される見積もりコードは、各ヒアリングシートにそのまま引き継げます。</p>
-      <div id="campaign-banner" class="campaign-banner" hidden></div>
-      <div class="steps" id="steps">
-        <span class="step is-active" data-step="1"><i>1</i>カテゴリ選択</span>
-        <span class="step" data-step="2"><i>2</i>仕様選択</span>
-        <span class="step" data-step="3"><i>3</i>見積もり発行</span>
+    <section class="hero">
+      <div class="wrap">
+        <p class="eyebrow">Estimate Simulator</p>
+        <h1>お見積もりシミュレーター</h1>
+        <p class="lede">制作カテゴリと仕様を選ぶだけで、概算費用をその場で算出します。算出後に発行される見積もりコードは、各ヒアリングシートにそのまま引き継げます。</p>
+        <div id="campaign-banner" class="campaign-banner" hidden></div>
+        <div class="steps" id="steps">
+          <span class="step is-active" data-step="1"><i>1</i>カテゴリ選択</span>
+          <span class="step" data-step="2"><i>2</i>仕様選択</span>
+          <span class="step" data-step="3"><i>3</i>見積もり発行</span>
+        </div>
       </div>
     </section>
 
     <section class="ai-suggest wrap">
       <div class="ai-card">
         <div class="ai-head">
-          <span class="ai-badge">💡</span>
+          <span class="ai-badge">TIP</span>
           <div>
             <h2>おすすめカテゴリを見る</h2>
             <p>やりたいことを文章で入力すると、近いカテゴリをご提案します（カテゴリ選択の目安としてご利用ください）。</p>
@@ -48,7 +50,7 @@
         </div>
         <textarea id="ai-description" rows="2" placeholder="例：飲食店の予約ができるコーポレートサイトを作りたい"></textarea>
         <div class="ai-actions">
-          <button type="button" id="ai-suggest-btn">✨ おすすめを見る</button>
+          <button type="button" id="ai-suggest-btn">おすすめを見る</button>
           <span id="ai-status"></span>
         </div>
         <div id="ai-result" hidden></div>
@@ -105,8 +107,12 @@
           <div id="code-result" hidden>
             <span id="code-value"></span>
             <button type="button" id="copy-code-btn">コードをコピー</button>
-            <a id="quote-link" href="#" target="_blank" rel="noopener">📄 御見積書PDFを見る</a>
+            <a id="quote-link" href="#" target="_blank" rel="noopener">御見積書PDFを見る</a>
             <a id="hearing-link" href="#">ヒアリングシートへ進む →</a>
+            <div id="case-id-note" class="case-id-note" hidden>
+              受付番号：<strong id="case-id-value"></strong><br />
+              この受付番号とメールアドレスで、<a href="/mypage.html">マイページ</a>から進捗を確認できます。
+            </div>
           </div>
         </div>
       </aside>

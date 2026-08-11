@@ -363,7 +363,7 @@ function initPricingSettingsOnce() {
   if (pricingSettingsInitialized) return;
   pricingSettingsInitialized = true;
 
-  const categoryOptions = CATEGORIES.map((c) => `<option value="${c.id}">${c.emoji} ${c.label}</option>`).join("");
+  const categoryOptions = CATEGORIES.map((c) => `<option value="${c.id}">${c.label}</option>`).join("");
   document.getElementById("rates-category").innerHTML = categoryOptions;
   document.getElementById("bundle-category").innerHTML = categoryOptions;
   document.getElementById("campaign-category").innerHTML += categoryOptions;
@@ -453,7 +453,7 @@ async function loadBundlesList() {
     return `
     <div class="settings-row" data-id="${b.id}">
       <div class="settings-row-main">
-        <strong>${cat ? cat.emoji : ""} ${b.label}</strong>
+        <strong>${cat ? cat.tag + " " : ""}${b.label}</strong>
         <span>${b.discount_type === "fixed" ? `¥${b.discount_value.toLocaleString("ja-JP")}引き` : `${b.discount_value}%OFF`} ／ ${b.description || ""}</span>
       </div>
       <div class="settings-row-actions">

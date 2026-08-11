@@ -34,6 +34,8 @@ const els = {
   bundleSection: document.getElementById("bundle-section"),
   bundleGrid: document.getElementById("bundle-grid"),
   campaignBanner: document.getElementById("campaign-banner"),
+  caseIdNote: document.getElementById("case-id-note"),
+  caseIdValue: document.getElementById("case-id-value"),
 };
 
 function escapeHtmlClient(s) {
@@ -149,7 +151,7 @@ function renderBundles() {
       <button type="button" class="bundle-card ${b.featured ? "is-featured" : ""}" data-bundle="${b.id}">
         ${b.featured ? '<span class="bundle-ribbon">人気No.1</span>' : ""}
         <div class="bundle-top">
-          <span class="icon-badge" style="background:${cat.badge}">${cat.emoji}</span>
+          <span class="icon-badge" style="background:${cat.badge}">${cat.tag}</span>
           ${b.audience_tag ? `<span class="bundle-audience">${b.audience_tag}</span>` : ""}
         </div>
         <span class="bundle-label">${b.label}</span>
@@ -191,7 +193,7 @@ function renderCampaignBanner() {
     ? `¥${Number(ACTIVE_CAMPAIGN.discount_value).toLocaleString("ja-JP")}引き`
     : `${ACTIVE_CAMPAIGN.discount_value}%OFF`;
   els.campaignBanner.hidden = false;
-  els.campaignBanner.innerHTML = `🎉 <strong>${ACTIVE_CAMPAIGN.label}</strong>　${discountText}実施中${ACTIVE_CAMPAIGN.banner_text ? "　" + ACTIVE_CAMPAIGN.banner_text : ""}`;
+  els.campaignBanner.innerHTML = `<strong>${ACTIVE_CAMPAIGN.label}</strong>　${discountText}実施中${ACTIVE_CAMPAIGN.banner_text ? "　" + ACTIVE_CAMPAIGN.banner_text : ""}`;
 }
 
 /* ---------------- カテゴリ選択 ---------------- */
@@ -199,7 +201,7 @@ function renderCategoryGrid() {
   els.categoryGrid.innerHTML = CATEGORIES.map(
     (cat) => `
     <button type="button" class="cat-card ${state.categoryId === cat.id ? "is-selected" : ""}" data-cat="${cat.id}" aria-pressed="${state.categoryId === cat.id}">
-      <span class="icon-badge" style="background:${cat.badge}">${cat.emoji}</span>
+      <span class="icon-badge" style="background:${cat.badge}">${cat.tag}</span>
       <h3>${cat.label}</h3>
     </button>
   `
@@ -232,7 +234,7 @@ function renderOptions() {
 
   const planHtml = `
     <div class="opt-group">
-      <h4>📋 ベースプラン<span class="req">必須</span></h4>
+      <h4>ベースプラン<span class="req">必須</span></h4>
       <div class="opt-list">
         ${cat.plans
           .map(
@@ -252,7 +254,7 @@ function renderOptions() {
 
   const addonHtml = `
     <div class="opt-group">
-      <h4>➕ オプション</h4>
+      <h4>オプション</h4>
       <div class="opt-list">
         ${cat.addons
           .map((a) => {
@@ -287,7 +289,7 @@ function renderOptions() {
   const recurringHtml = cat.recurring.length
     ? `
     <div class="opt-group">
-      <h4>🔁 継続費用（任意・目安）</h4>
+      <h4>継続費用（任意・目安）</h4>
       <div class="opt-list">
         ${cat.recurring.map((r) => `<div class="opt-row opt-row--static"><span class="opt-label">${r.label}</span><span class="opt-price">${formatYen(r.price)} / ${r.unit}</span></div>`).join("")}
       </div>
@@ -296,7 +298,7 @@ function renderOptions() {
 
   const commonHtml = `
     <div class="opt-group">
-      <h4>🎁 共通オプション</h4>
+      <h4>共通オプション</h4>
       <div class="opt-list">
         ${COMMON_ADDONS.map((a) => {
           if (a.type === "multiplier") {
@@ -323,7 +325,7 @@ function renderOptions() {
   const deliveryHtml = DELIVERY_OPTIONS.length
     ? `
     <div class="opt-group" id="delivery-opt-group">
-      <h4>🚚 納品スケジュール</h4>
+      <h4>納品スケジュール</h4>
       <div class="opt-list">
         ${DELIVERY_OPTIONS.map((d) => {
           const checked = state.deliveryOptionId === d.id;
@@ -433,7 +435,7 @@ function computeTotal() {
       total = bundle.discount_type === "fixed"
         ? Math.max(0, Math.round(total - bundle.discount_value))
         : Math.round(total * (1 - bundle.discount_value / 100));
-      breakdown.push({ label: `🎁 ${bundle.label}（セット割引）`, price: total - before });
+      breakdown.push({ label: `${bundle.label}（セット割引）`, price: total - before });
     }
   }
 
@@ -442,7 +444,7 @@ function computeTotal() {
   if (delivery && delivery.multiplier !== 1) {
     const before = total;
     total = Math.round(total * delivery.multiplier);
-    breakdown.push({ label: `🚚 ${delivery.label}`, price: total - before });
+    breakdown.push({ label: `${delivery.label}`, price: total - before });
   }
 
   // キャンペーン割引
@@ -451,7 +453,7 @@ function computeTotal() {
     total = ACTIVE_CAMPAIGN.discount_type === "fixed"
       ? Math.max(0, Math.round(total - ACTIVE_CAMPAIGN.discount_value))
       : Math.round(total * (1 - ACTIVE_CAMPAIGN.discount_value / 100));
-    breakdown.push({ label: `🎉 ${ACTIVE_CAMPAIGN.label}（キャンペーン割引）`, price: total - before });
+    breakdown.push({ label: `${ACTIVE_CAMPAIGN.label}（キャンペーン割引）`, price: total - before });
   }
 
   const recurringTotal = cat.recurring.reduce((sum, r) => sum + r.price, 0);
@@ -567,6 +569,10 @@ els.issueBtn.addEventListener("click", async () => {
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     if (data.caseId) {
       els.hearingLink.href = `${cat.hearingUrl}?code=${encodeURIComponent(code)}&caseId=${encodeURIComponent(data.caseId)}`;
+      if (els.caseIdNote && els.caseIdValue) {
+        els.caseIdValue.textContent = data.caseId;
+        els.caseIdNote.hidden = false;
+      }
     }
     statusEl.className = "send-status is-success";
     statusEl.innerHTML = `${escapeHtmlClient(email)} 宛に見積書をお送りしました。ご確認ください。<br /><span class="status-sub">※ 数分待っても届かない場合は、迷惑メールフォルダもご確認ください。</span>`;
@@ -630,7 +636,7 @@ if (aiEls.btn) {
       }
 
       aiEls.result.innerHTML = `
-        <div class="ai-result-cat">${cat.emoji} ${cat.label} がおすすめです</div>
+        <div class="ai-result-cat">${cat.label} がおすすめです</div>
         <div class="ai-result-note">${s.reasoning || ""}${s.note ? "／" + s.note : ""}</div>
         <button type="button" id="ai-apply-btn">このカテゴリを選択する</button>
       `;

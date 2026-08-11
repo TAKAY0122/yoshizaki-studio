@@ -1,21 +1,25 @@
 /* ============================================================
-   Aster Systems — Design Tokens (v6)
-   ty-schedule / genba-mvp と同じ Noto Sans JP + navy(#1B2333) × gold(#C9A227)。
-   白・明るい基調の、ふつうのSaaS管理画面スタイル。装飾は最小限。
+   Aster Systems — Design Tokens (v7)
+   2026-08-11 サイト全体デザイン刷新。navy(#1B2333) × gold(#C9A227) の
+   ブランド軸は維持しつつ、余白スケール・影の階調・タイプスケールを再構築。
    ============================================================ */
 
 :root {
-  --bg: #f5f6f8;
+  --bg: #f7f7f5;
   --card: #ffffff;
-  --border: #e3e8ec;
+  --card-soft: #fbfaf7;
+  --border: #e6e3db;
+  --border-soft: #efece4;
 
   --navy: #1b2333;
+  --navy-soft: #2a3448;
   --ink: #1b2333;
   --ink-soft: #5c6b74;
-  --ink-faint: #8a97a0;
+  --ink-faint: #8d95a0;
 
   --gold: #c9a227;
-  --gold-soft: #f7efd6;
+  --gold-deep: #a9841a;
+  --gold-soft: #f6efd9;
   --gold-ink: #1b2333;
 
   --tint-estimate: #c9a227;
@@ -34,7 +38,9 @@
 
   --accent: var(--gold);
   --danger: #c0564a;
+  --danger-soft: #fbeae7;
   --success: #3c8c5a;
+  --success-soft: #e7f3ea;
 
   --font-display: "Noto Sans JP", "Hiragino Sans", sans-serif;
   --font-body: "Noto Sans JP", "Hiragino Sans", sans-serif;
@@ -44,15 +50,32 @@
   --step-0: 0.98rem;
   --step-1: 1.15rem;
   --step-2: 1.4rem;
-  --step-3: clamp(1.7rem, 1.4rem + 1.3vw, 2.2rem);
-  --step-4: clamp(1.9rem, 1.5rem + 1.6vw, 2.6rem);
+  --step-3: clamp(1.7rem, 1.4rem + 1.3vw, 2.25rem);
+  --step-4: clamp(2rem, 1.5rem + 2.2vw, 3rem);
+  --step-5: clamp(2.4rem, 1.7rem + 3vw, 3.8rem);
 
-  --radius-card: 12px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  --radius-sm: 8px;
+  --radius-card: 14px;
+  --radius-lg: 20px;
   --radius-badge: 12px;
-  --shadow-card: 0 1px 2px rgba(27, 35, 51, 0.06);
-  --shadow-lift: 0 10px 24px -10px rgba(27, 35, 51, 0.16);
+  --radius-pill: 999px;
+
+  --shadow-card: 0 1px 2px rgba(27, 35, 51, 0.05), 0 1px 1px rgba(27, 35, 51, 0.04);
+  --shadow-lift: 0 16px 32px -14px rgba(27, 35, 51, 0.2), 0 4px 10px -4px rgba(27, 35, 51, 0.08);
+  --shadow-pop: 0 24px 48px -16px rgba(27, 35, 51, 0.28);
 
   --ease-studio: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --transition-fast: 0.16s var(--ease-studio);
+  --transition-base: 0.24s var(--ease-studio);
 }
 
 @media (prefers-reduced-motion: reduce) {
