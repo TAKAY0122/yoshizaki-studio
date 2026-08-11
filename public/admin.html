@@ -208,6 +208,7 @@
 
       <!-- 基本料金タブ -->
       <div class="tab-panel" data-panel="rates">
+        <p class="tab-help">「人日単価」×「人日数」＝「お客様に表示される金額」です。金額欄は自動で計算されます。</p>
         <label class="f-label" for="rates-category">カテゴリ</label>
         <select id="rates-category" class="note-input"></select>
         <table class="rates-table" id="rates-table"></table>
@@ -219,6 +220,7 @@
 
       <!-- セットプランタブ -->
       <div class="tab-panel" data-panel="bundles" hidden>
+        <p class="tab-help">複数のプラン・オプションをまとめて割引価格で提供します。見積もりシミュレーターに「おトクなセットプラン」として表示されます。</p>
         <div id="bundles-list" class="settings-list"></div>
         <h3 class="settings-subhead">新規セットプランを追加</h3>
         <label class="f-label" for="bundle-category">カテゴリ</label>
@@ -257,6 +259,7 @@
 
       <!-- 納品スケジュールタブ -->
       <div class="tab-panel" data-panel="delivery" hidden>
+        <p class="tab-help">お客様が見積もり時に選べる納期の種類です。「標準の納期」に設定したものが最初から選ばれた状態になります。</p>
         <div id="delivery-list" class="settings-list"></div>
         <h3 class="settings-subhead">新規スケジュールを追加</h3>
         <label class="f-label" for="delivery-label">名称</label>
@@ -276,6 +279,7 @@
 
       <!-- キャンペーンタブ -->
       <div class="tab-panel" data-panel="campaigns" hidden>
+        <p class="tab-help">同時に有効にできるキャンペーンは1件だけです。新しく「有効にする」と、それまで有効だったものは自動的に無効になります。</p>
         <div id="campaigns-list" class="settings-list"></div>
         <h3 class="settings-subhead">新規キャンペーンを追加</h3>
         <label class="f-label" for="campaign-label">キャンペーン名</label>

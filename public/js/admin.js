@@ -400,21 +400,58 @@ async function loadRatesTable() {
 
   const table = document.getElementById("rates-table");
   table.innerHTML = `
-    <tr><th>項目</th><th>人日単価</th><th>人日数</th></tr>
+    <tr><th>項目</th><th>人日単価</th><th>人日数</th><th>金額（自動計算）</th></tr>
     ${rows.map((r) => `
       <tr data-type="${r.type}" data-id="${r.id}">
         <td>${r.label}</td>
-        <td><input type="number" class="rate-input" value="${r.rate}" /></td>
-        <td><input type="number" step="0.01" class="days-input" value="${r.days}" /></td>
+        <td><input type="number" min="0" class="rate-input" value="${r.rate}" /></td>
+        <td><input type="number" min="0" step="0.01" class="days-input" value="${r.days}" /></td>
+        <td class="price-cell"></td>
       </tr>`).join("")}
   `;
+
+  const formatYenAdmin = (n) => "¥" + Math.round(n).toLocaleString("ja-JP");
+  const updatePriceCell = (tr) => {
+    const rate = Number(tr.querySelector(".rate-input").value);
+    const days = Number(tr.querySelector(".days-input").value);
+    const cell = tr.querySelector(".price-cell");
+    cell.textContent = Number.isFinite(rate) && Number.isFinite(days) ? formatYenAdmin(rate * days) : "―";
+  };
+  table.querySelectorAll("tr[data-type]").forEach((tr) => {
+    updatePriceCell(tr);
+    tr.querySelectorAll(".rate-input, .days-input").forEach((input) => {
+      input.addEventListener("input", () => updatePriceCell(tr));
+    });
+  });
 }
 
 document.getElementById("rates-save")?.addEventListener("click", async () => {
   const catId = document.getElementById("rates-category").value;
   const statusEl = document.getElementById("rates-status");
-  const items = Array.from(document.querySelectorAll("#rates-table tr[data-type]")).map((tr) => ({
-    category_id: tr.dataset.type === "common_addon" ? catId : catId,
+  const rows = Array.from(document.querySelectorAll("#rates-table tr[data-type]"));
+
+  // 未入力・マイナス値など、保存できない項目がないか先に確認する
+  // （サーバー側は不正な値を静かに無視するため、ここで止めないと
+  //  「保存できたつもりが実は反映されていない」状態になってしまう）。
+  let hasInvalid = false;
+  rows.forEach((tr) => {
+    const rateInput = tr.querySelector(".rate-input");
+    const daysInput = tr.querySelector(".days-input");
+    const rate = Number(rateInput.value);
+    const days = Number(daysInput.value);
+    const rateInvalid = !Number.isFinite(rate) || rate < 0;
+    const daysInvalid = !Number.isFinite(days) || days < 0;
+    rateInput.classList.toggle("is-invalid", rateInvalid);
+    daysInput.classList.toggle("is-invalid", daysInvalid);
+    if (rateInvalid || daysInvalid) hasInvalid = true;
+  });
+  if (hasInvalid) {
+    statusEl.textContent = "赤色の欄に0以上の数値を入力してください";
+    return;
+  }
+
+  const items = rows.map((tr) => ({
+    category_id: catId,
     item_type: tr.dataset.type,
     item_id: tr.dataset.id,
     rate: Number(tr.querySelector(".rate-input").value),
@@ -426,7 +463,7 @@ document.getElementById("rates-save")?.addEventListener("click", async () => {
     statusEl.textContent = "保存しました（見積もりシミュレーターに反映されます）";
     setTimeout(() => { statusEl.textContent = ""; }, 3000);
   } catch (e) {
-    statusEl.textContent = "保存に失敗しました";
+    statusEl.textContent = "保存に失敗しました。時間をおいて再度お試しください";
   }
 });
 

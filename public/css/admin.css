@@ -193,11 +193,22 @@ button { font-family: inherit; }
 }
 .tab-btn.is-active { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); font-weight: 700; }
 .tab-panel[hidden] { display: none; }
+.tab-help {
+  font-size: var(--step--1);
+  color: var(--ink-soft);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin: 0 0 16px;
+}
 
 .rates-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: var(--step--1); }
 .rates-table th { text-align: left; color: var(--ink-faint); font-weight: 700; padding: 6px 8px; border-bottom: 1px solid var(--border); }
 .rates-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
 .rates-table input { width: 90px; font-family: var(--font-body); font-size: var(--step--1); border: 1px solid var(--border); border-radius: 6px; padding: 5px 7px; }
+.rates-table input.is-invalid { border-color: var(--danger); background: var(--danger-soft); }
+.rates-table .price-cell { font-family: var(--font-mono); font-weight: 700; color: var(--navy); white-space: nowrap; }
 
 .settings-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
 .settings-row {
