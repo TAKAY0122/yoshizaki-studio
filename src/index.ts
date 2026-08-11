@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
+import { secureHeaders } from "hono/secure-headers";
 import type { Context, Next } from "hono";
 
 type Bindings = {
@@ -23,6 +24,10 @@ type Variables = {
 };
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
+// 既定のセキュリティ関連レスポンスヘッダー（X-Frame-Options, X-Content-Type-Options等）を付与。
+// Content-Security-Policyは明示的に指定しない限り付与されないため、
+// Google FontsやインラインCSSの読み込みには影響しない。
+app.use("*", secureHeaders());
 
 const SESSION_COOKIE = "ty_admin_session";
 const SESSION_DAYS = 7;
@@ -1158,6 +1163,11 @@ app.get("/estimate", (c) => c.redirect("/estimate.html", 302));
 app.get("/admin", (c) => c.redirect("/admin.html", 302));
 app.get("/mypage", (c) => c.redirect("/mypage.html", 302));
 
-app.get("*", (c) => c.env.ASSETS.fetch(c.req.raw));
+app.get("*", async (c) => {
+  const res = await c.env.ASSETS.fetch(c.req.raw);
+  // ASSETS.fetch() が返すResponseはヘッダーがイミュータブルなため、
+  // secureHeadersミドルウェア（後段でヘッダーを追記する）が書き込めるよう複製する。
+  return new Response(res.body, res);
+});
 
 export default app;
