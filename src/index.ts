@@ -116,6 +116,10 @@ app.post("/api/hearings", async (c) => {
   if (!body || !body.category || !body.answers) {
     return c.json({ error: "invalid payload" }, 400);
   }
+  // 異常に大きいペイロード（乱用・入力ミス）を弾く。通常のヒアリング回答なら十分収まる上限。
+  if (JSON.stringify(body.answers).length > 20000) {
+    return c.json({ error: "入力内容が大きすぎます" }, 400);
+  }
 
   const now = new Date().toISOString();
   const answerName = body.answers.contact_name || body.answers.company || "";
@@ -850,7 +854,7 @@ app.post("/api/estimates/send", async (c) => {
   const code: string = body?.code;
   const name: string = (body?.name || "").trim();
   const email: string = (body?.email || "").trim();
-  if (!code || !name || !email || !EMAIL_PATTERN.test(email)) {
+  if (!code || !name || !email || !EMAIL_PATTERN.test(email) || name.length > 200 || email.length > 200) {
     return c.json({ error: "code, name, email は必須です" }, 400);
   }
 
@@ -1095,6 +1099,8 @@ app.post("/api/ai/hearing-assist", async (c) => {
   const category = body?.category;
   const answers = body?.answers;
   if (!category || !answers) return c.json({ error: "category, answers は必須です" }, 400);
+  // AI呼び出しのコスト乱用を防ぐため、送信できる回答量に上限を設ける。
+  if (JSON.stringify(answers).length > 8000) return c.json({ error: "入力内容が大きすぎます" }, 400);
 
   const system = `あなたはAster Systemsの制作ディレクターです。お客様が入力中のヒアリングシート（カテゴリ: ${category}）の
 回答内容（JSON）を見て、ヒアリング精度を上げるための追加確認事項を2〜4件、日本語の短い質問文の配列として提案してください。
