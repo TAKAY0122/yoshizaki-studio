@@ -94,7 +94,7 @@ function renderForm() {
   const config = HEARING_FORMS[window.HEARING_CATEGORY];
   document.getElementById("hearing-title").textContent = config.title;
   document.getElementById("hearing-lede").textContent = config.lede;
-  document.getElementById("hearing-badge").textContent = config.emoji;
+  document.getElementById("hearing-badge").textContent = config.tag;
   document.getElementById("hearing-badge").style.background = config.badgeBg;
 
   const root = document.getElementById("form-sections");

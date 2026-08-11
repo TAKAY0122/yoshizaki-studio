@@ -19,7 +19,7 @@ const DEADLINE_NOTE_FIELD = { id: "deadline_reason", label: "納期の背景（�
 const HEARING_FORMS = {
   web: {
     title: "Webサイト制作ヒアリングシート",
-    emoji: "WEB",
+    tag: "WEB",
     badgeBg: "#e8f1fb",
     lede: "コーポレート・LP・EC・メディアなど、Web制作のご依頼内容を詳しくお伺いします。回答内容は御見積もり・ご提案の精度向上に活用させていただきます。",
     sections: [
@@ -69,7 +69,7 @@ const HEARING_FORMS = {
 
   video: {
     title: "動画編集・映像制作ヒアリングシート",
-    emoji: "VIDEO",
+    tag: "VIDEO",
     badgeBg: "#fdeaec",
     lede: "カット編集・テロップ・モーション・SNS動画などの映像制作のご依頼内容を詳しくお伺いします。",
     sections: [
@@ -108,7 +108,7 @@ const HEARING_FORMS = {
 
   app: {
     title: "アプリ開発ヒアリングシート",
-    emoji: "APP",
+    tag: "APP",
     badgeBg: "#efeafb",
     lede: "iOS・Android・Webアプリの企画段階から要件定義までを詳しくお伺いします。",
     sections: [
@@ -148,7 +148,7 @@ const HEARING_FORMS = {
 
   system: {
     title: "システム開発ヒアリングシート",
-    emoji: "SYSTEM",
+    tag: "SYSTEM",
     badgeBg: "#e6f6f2",
     lede: "業務システム・CRM・受発注管理・API連携など、業務DX向けのご依頼内容を詳しくお伺いします。",
     sections: [
@@ -187,7 +187,7 @@ const HEARING_FORMS = {
 
   design: {
     title: "グラフィック・デザインヒアリングシート",
-    emoji: "DESIGN",
+    tag: "DESIGN",
     badgeBg: "#fdecf5",
     lede: "ロゴ・チラシ・パンフ・名刺・ブランディングなど、印刷・グラフィック系のご依頼内容を詳しくお伺いします。",
     sections: [

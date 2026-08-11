@@ -121,20 +121,29 @@ app.post("/api/hearings", async (c) => {
   let isNewCase = true;
 
   if (body.caseId) {
-    const existing = await c.env.DB.prepare("SELECT id FROM cases WHERE id = ?").bind(body.caseId).first();
+    const existing: any = await c.env.DB.prepare("SELECT id, email FROM cases WHERE id = ?").bind(body.caseId).first();
     if (existing) {
       caseId = body.caseId;
       isNewCase = false;
+      // 既にメールアドレスが設定されている場合は上書きしない。
+      // caseId（受付番号）を知っている第三者がヒアリング送信APIを直接叩いて
+      // email を書き換え、正式見積書の送付先を乗っ取れてしまうのを防ぐため。
+      const emailToSet = existing.email ? existing.email : answerEmail;
       await c.env.DB.prepare(
         `UPDATE cases SET status = 'hearing', customer_name = ?, email = ?, tel = ?, company = ?, updated_at = ? WHERE id = ?`
       )
-        .bind(answerName, answerEmail, answerTel, answerCompany, now, caseId)
+        .bind(answerName, emailToSet, answerTel, answerCompany, now, caseId)
         .run();
     }
   }
 
+  // refCode はクライアント（hearing.js）が生成する想定値だが、サーバー側で書式を
+  // 検証せずに cases.id（主キー）やメール件名へ使うと、任意文字列の注入を許してしまう。
+  const REF_CODE_PATTERN = /^[A-Z]{1,4}-\d{8}-[A-Z0-9]{4,8}$/;
+  const safeRefCode = typeof body.refCode === "string" && REF_CODE_PATTERN.test(body.refCode) ? body.refCode : null;
+
   if (!caseId) {
-    caseId = body.refCode || newId();
+    caseId = safeRefCode || newId();
     await c.env.DB.prepare(
       `INSERT INTO cases (id, category, status, customer_name, email, tel, company, created_at, updated_at)
        VALUES (?, ?, 'hearing', ?, ?, ?, ?, ?, ?)`
@@ -867,7 +876,13 @@ app.post("/api/estimates/send", async (c) => {
     </div>
   `;
 
-  await sendResendEmail(c.env.RESEND_API_KEY, fromAddr, [email], `【Aster Systems】御見積書のご案内（${catInfo.label}）`, customerHtml);
+  // メール送信に失敗しても、既にDBへ登録済みのcaseId・見積もりコードは
+  // 必ずクライアントへ返す（受付番号・マイページ導線を案内できなくなるのを防ぐため）。
+  try {
+    await sendResendEmail(c.env.RESEND_API_KEY, fromAddr, [email], `【Aster Systems】御見積書のご案内（${catInfo.label}）`, customerHtml);
+  } catch (err) {
+    console.warn("見積り確認メールの送信に失敗しました（見積もり自体の受付は継続）:", err);
+  }
 
   // 社内通知メール
   if (c.env.COMPANY_NOTIFY_EMAIL) {
@@ -884,14 +899,18 @@ app.post("/api/estimates/send", async (c) => {
         <p style="color:#8a97a0;font-size:12px;">ヒアリングシート送信後は管理者ダッシュボード（/admin）で確認できます。</p>
       </div>
     `;
-    await sendResendEmail(
-      c.env.RESEND_API_KEY,
-      fromAddr,
-      [c.env.COMPANY_NOTIFY_EMAIL],
-      `【見積もり通知】${escapeHtml(name)} 様（${catInfo.label}）`,
-      staffHtml,
-      email
-    );
+    try {
+      await sendResendEmail(
+        c.env.RESEND_API_KEY,
+        fromAddr,
+        [c.env.COMPANY_NOTIFY_EMAIL],
+        `【見積もり通知】${escapeHtml(name)} 様（${catInfo.label}）`,
+        staffHtml,
+        email
+      );
+    } catch (err) {
+      console.warn("社内通知メールの送信に失敗しました（見積もり自体の受付は継続）:", err);
+    }
   }
 
   return c.json({ ok: true, caseId });
