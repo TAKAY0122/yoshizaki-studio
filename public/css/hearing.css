@@ -129,6 +129,7 @@ textarea { resize: vertical; min-height: 90px; font-family: var(--font-body); }
   transition: border-color 0.2s var(--ease-studio), background 0.2s var(--ease-studio);
 }
 .radio-opt:has(input:checked) { border-color: var(--gold); background: var(--gold-soft); font-weight: 700; }
+.radio-opt:active { transform: scale(0.96); }
 .radio-opt input { accent-color: var(--gold); }
 
 .draft-notice {
@@ -157,6 +158,7 @@ textarea { resize: vertical; min-height: 90px; font-family: var(--font-body); }
   flex: none;
 }
 .draft-clear-btn:hover { background: var(--gold); }
+.draft-clear-btn:active { transform: scale(0.96); }
 
 .ai-assist { margin-bottom: 18px; }
 #ai-assist-btn {
@@ -173,6 +175,7 @@ textarea { resize: vertical; min-height: 90px; font-family: var(--font-body); }
   transition: background 0.2s var(--ease-studio);
 }
 #ai-assist-btn:hover { background: #f2e6bd; }
+#ai-assist-btn:active:not(:disabled) { transform: scale(0.99); }
 #ai-assist-btn:disabled { opacity: 0.6; cursor: default; }
 #ai-assist-result {
   margin-top: 10px;
@@ -201,6 +204,7 @@ textarea { resize: vertical; min-height: 90px; font-family: var(--font-body); }
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 .submit-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+.submit-btn:active { transform: translateY(0) scale(0.98); box-shadow: var(--shadow-card); }
 
 /* ---------------- Success panel ---------------- */
 #success-panel {
@@ -211,12 +215,22 @@ textarea { resize: vertical; min-height: 90px; font-family: var(--font-body); }
   padding: 40px 28px;
   text-align: center;
   margin: 24px 0 60px;
+  animation: success-panel-in 0.4s var(--ease-studio) both;
+}
+@keyframes success-panel-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 #success-panel .check {
   width: 56px; height: 56px; border-radius: 50%;
   background: var(--gold-soft);
   display: flex; align-items: center; justify-content: center;
   font-size: 1.6rem; margin: 0 auto 16px;
+  animation: success-check-in 0.4s 0.1s var(--ease-studio) both;
+}
+@keyframes success-check-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
 }
 #success-panel h2 { font-family: var(--font-display); font-size: var(--step-2); margin: 0 0 10px; }
 #success-panel p { color: var(--ink-soft); margin: 0 0 16px; }
