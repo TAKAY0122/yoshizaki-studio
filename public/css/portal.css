@@ -40,6 +40,7 @@ a { color: inherit; text-decoration: none; }
   transition: background var(--transition-fast), transform var(--transition-fast);
 }
 .header-cta:hover { background: var(--gold); transform: translateY(-1px); }
+.header-cta:active { transform: translateY(0) scale(0.97); }
 .header-cta .arrow { transition: transform var(--transition-fast); }
 .header-cta:hover .arrow { transform: translateX(3px); }
 
@@ -105,6 +106,7 @@ a { color: inherit; text-decoration: none; }
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 .btn-primary:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+.btn-primary:active { transform: translateY(0) scale(0.98); box-shadow: var(--shadow-card); }
 .btn-primary .arrow { transition: transform var(--transition-fast); }
 .btn-primary:hover .arrow { transform: translateX(4px); }
 
@@ -121,6 +123,7 @@ a { color: inherit; text-decoration: none; }
   transition: border-color var(--transition-fast), color var(--transition-fast);
 }
 .btn-ghost:hover { border-color: var(--gold); color: var(--ink); }
+.btn-ghost:active { transform: scale(0.98); }
 
 .trust-row {
   display: flex;
@@ -238,6 +241,7 @@ a { color: inherit; text-decoration: none; }
   border-color: var(--gold);
   transform: translateY(-3px);
 }
+.tool-card:active { transform: translateY(-1px) scale(0.99); transition-duration: 0.08s; }
 .tool-card.featured {
   grid-column: 1 / -1;
   border-color: var(--gold);
