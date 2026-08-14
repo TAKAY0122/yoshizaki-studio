@@ -54,6 +54,7 @@ input:focus { outline: none; border-color: var(--gold); background: var(--card);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 .lookup-btn:hover, .lookup-again-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+.lookup-btn:active, .lookup-again-btn:active { transform: translateY(0) scale(0.98); box-shadow: var(--shadow-card); }
 .lookup-again-btn { margin-top: 18px; background: var(--bg); color: var(--ink); border: 1px solid var(--border); }
 
 #status-category { font-family: var(--font-display); font-size: var(--step-1); margin: 0 0 18px; }
@@ -78,7 +79,10 @@ input:focus { outline: none; border-color: var(--gold); background: var(--card);
 #status-quote-link a {
   display: inline-block; font-size: var(--step--1); font-weight: 700; color: var(--gold-ink);
   border: 1px solid var(--gold); padding: 8px 16px; border-radius: 999px;
+  transition: background var(--transition-fast), transform var(--transition-fast);
 }
+#status-quote-link a:hover { background: var(--gold-soft); }
+#status-quote-link a:active { transform: scale(0.97); }
 
 footer.site-footer { background: var(--card); border-top: 1px solid var(--border); color: var(--ink-faint); padding: 20px clamp(16px, 4vw, 40px); font-size: var(--step--1); }
 
