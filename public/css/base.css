@@ -57,7 +57,7 @@
 .site-footer {
   background: var(--navy);
   color: rgba(255, 255, 255, 0.6);
-  padding: var(--space-4) clamp(16px, 4vw, 40px);
+  padding: var(--space-4) clamp(24px, 6vw, 40px);
 }
 .site-footer .wrap {
   display: flex;
@@ -80,7 +80,7 @@
 .toolbar {
   background: var(--card);
   border-bottom: 1px solid var(--border);
-  padding: 14px clamp(16px, 4vw, 40px);
+  padding: 14px clamp(24px, 6vw, 40px);
 }
 .toolbar-inner {
   display: flex;
