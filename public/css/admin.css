@@ -52,6 +52,7 @@ button { font-family: inherit; }
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 .login-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+.login-btn:active { transform: translateY(0) scale(0.98); box-shadow: var(--shadow-card); }
 .login-error { color: var(--danger); font-size: var(--step--1); margin: -6px 0 12px; min-height: 1.2em; }
 .login-note { font-size: var(--step--1); color: var(--ink-faint); margin-top: 14px; text-align: center; }
 
@@ -69,8 +70,10 @@ button { font-family: inherit; }
 .logout-btn {
   border: 1px solid var(--border); background: var(--card); color: var(--ink-soft);
   padding: 7px 14px; border-radius: 999px; cursor: pointer; font-size: var(--step--1);
+  transition: border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 }
 .logout-btn:hover { border-color: var(--gold); color: var(--ink); }
+.logout-btn:active { transform: scale(0.96); }
 
 .dash-wrap { max-width: 1100px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 40px) 60px; }
 
@@ -79,7 +82,10 @@ button { font-family: inherit; }
   display: inline-flex; align-items: center; gap: 6px;
   border: 1px solid var(--border); background: var(--card);
   padding: 7px 14px; border-radius: 999px; font-size: var(--step--1); cursor: pointer;
+  transition: border-color var(--transition-fast), transform var(--transition-fast);
 }
+.status-filter:hover { border-color: var(--gold); }
+.status-filter:active { transform: scale(0.96); }
 .status-filter.is-active { border-color: var(--gold); background: var(--gold-soft); font-weight: 700; }
 .search-input {
   margin-left: auto; padding: 8px 14px; border: 1px solid var(--border); border-radius: 999px;
@@ -124,9 +130,10 @@ button { font-family: inherit; }
   padding: 8px 14px;
   border-radius: 999px;
   cursor: pointer;
-  transition: border-color 0.2s var(--ease-studio);
+  transition: border-color 0.2s var(--ease-studio), transform 0.1s var(--ease-studio);
 }
 .settings-btn:hover { border-color: var(--gold); }
+.settings-btn:active { transform: scale(0.96); }
 
 .doc-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
 .doc-btn {
@@ -138,9 +145,10 @@ button { font-family: inherit; }
   padding: 9px 16px;
   border-radius: 999px;
   cursor: pointer;
-  transition: border-color 0.2s var(--ease-studio), background 0.2s var(--ease-studio);
+  transition: border-color 0.2s var(--ease-studio), background 0.2s var(--ease-studio), transform 0.1s var(--ease-studio);
 }
 .doc-btn:hover { border-color: var(--gold); background: var(--gold-soft); }
+.doc-btn:active:not(:disabled) { transform: scale(0.97); }
 .doc-btn:disabled { opacity: 0.5; cursor: default; }
 .modal-card {
   background: var(--card); border-radius: var(--radius-card); max-width: 640px; width: 100%;
@@ -149,7 +157,12 @@ button { font-family: inherit; }
 }
 .modal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
 .modal-head h2 { font-family: var(--font-display); font-size: var(--step-1); margin: 0 0 4px; }
-.modal-close { border: none; background: transparent; font-size: 1.4rem; cursor: pointer; color: var(--ink-faint); line-height: 1; }
+.modal-close {
+  border: none; background: transparent; font-size: 1.4rem; cursor: pointer; color: var(--ink-faint); line-height: 1;
+  transition: color var(--transition-fast), transform var(--transition-fast);
+}
+.modal-close:hover { color: var(--ink); }
+.modal-close:active { transform: scale(0.9); }
 
 .modal-section { margin-bottom: 18px; }
 .modal-section h3 { font-size: var(--step--1); color: var(--ink-faint); font-weight: 700; margin: 0 0 8px; }
@@ -172,7 +185,11 @@ button { font-family: inherit; }
 .save-btn {
   border: none; background: var(--gold); color: var(--gold-ink); font-weight: 700;
   padding: 10px 20px; border-radius: 999px; cursor: pointer; font-size: var(--step--1);
+  box-shadow: var(--shadow-card);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
+.save-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-lift); }
+.save-btn:active { transform: translateY(0) scale(0.97); box-shadow: var(--shadow-card); }
 
 .log-list { list-style: none; margin: 0; padding: 0; font-size: var(--step--1); color: var(--ink-soft); }
 .log-list li { padding: 6px 0; border-bottom: 1px solid var(--border); }
@@ -191,7 +208,10 @@ button { font-family: inherit; }
   padding: 7px 14px;
   border-radius: 999px;
   cursor: pointer;
+  transition: border-color var(--transition-fast), transform var(--transition-fast);
 }
+.tab-btn:hover { border-color: var(--gold); }
+.tab-btn:active { transform: scale(0.96); }
 .tab-btn.is-active { background: var(--gold); color: var(--gold-ink); border-color: var(--gold); font-weight: 700; }
 .tab-panel[hidden] { display: none; }
 .tab-help {
@@ -224,8 +244,12 @@ button { font-family: inherit; }
 .settings-row button {
   font-family: var(--font-body); font-size: 12px; border: 1px solid var(--border); background: var(--card);
   padding: 5px 10px; border-radius: 999px; cursor: pointer;
+  transition: border-color var(--transition-fast), transform var(--transition-fast);
 }
+.settings-row button:hover { border-color: var(--gold); }
+.settings-row button:active { transform: scale(0.95); }
 .settings-row button.is-danger { color: #a13a2e; border-color: #f2c9c3; }
+.settings-row button.is-danger:hover { border-color: #a13a2e; }
 .settings-row button.is-active-toggle.is-on { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); font-weight: 700; }
 
 .settings-subhead { font-size: var(--step--1); color: var(--ink-faint); font-weight: 700; margin: 18px 0 8px; border-top: 1px dashed var(--border); padding-top: 14px; }
