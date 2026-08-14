@@ -94,6 +94,3 @@ footer.site-footer { background: var(--card); border-top: 1px solid var(--border
   .status-track .pt { min-width: 50px; }
   .status-track .pt span.label { font-size: 10px; }
 }
-
-.brand-link { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
-.brand-link:hover .brand-word { color: var(--gold-ink, var(--gold)); }
