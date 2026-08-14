@@ -18,7 +18,7 @@ body {
 a { color: inherit; text-decoration: none; }
 :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
-.wrap { max-width: 560px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 40px); }
+.wrap { max-width: 640px; margin: 0 auto; padding: 0 clamp(20px, 5vw, 40px); }
 
 
 .hero { padding: clamp(24px, 4vw, 40px) 0 clamp(16px, 3vw, 24px); }
