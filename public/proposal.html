@@ -20,7 +20,10 @@
         <img src="/img/aster-icon.png" alt="" class="brand-icon" />
         <span class="brand-word">Aster<em>Systems</em></span>
       </a>
-      <button type="button" id="print-btn">印刷 / PDFとして保存</button>
+      <div class="toolbar-actions">
+        <button type="button" id="copy-spec-btn" hidden>仕様書ドラフトをコピー</button>
+        <button type="button" id="print-btn">印刷 / PDFとして保存</button>
+      </div>
     </div>
   </div>
 
@@ -53,6 +56,12 @@
     </section>
 
     <p class="doc-footer-note">本書は、お客様からのヒアリング回答をもとに、株式会社Aster Systemsが提案作成の参考資料として作成したものです。</p>
+
+    <section class="block spec-block no-print" id="spec-block" hidden>
+      <h2>仕様書ドラフト（社内用たたき台）</h2>
+      <p class="spec-note">ヒアリング回答を要件定義の形に自動で並べ替えたものです。そのまま仕様書・設計書の初稿として使えます。内容は必ず見直してください。</p>
+      <div id="spec-content"></div>
+    </section>
   </main>
 
   <div class="wrap" id="error-box" hidden>
