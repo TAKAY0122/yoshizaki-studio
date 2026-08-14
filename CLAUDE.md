@@ -46,6 +46,9 @@ Claude Code で作業する際は、このファイルと `.claude/rules/`・`.c
 - リスクのある変更（金額計算ロジック・DBスキーマ・認証・wrangler.toml・削除処理）は、実装前に簡単な計画を提示する
 - 実装後は `.claude/agents/code-reviewer.md` や `security-reviewer.md` を使ってレビューを挟む
 - 納品前は `/project:release-check`（`.claude/skills/release-check/`）で最終確認する
+- `/project:release-check` とレビュー（code-reviewer等）が通過したら、確認を待たずに `/project:deploy` の手順で `npm run deploy` を実行し、続けて `.claude/memory/decisions.md` に変更内容を追記する（2026-08-14、ユーザー了承済みの運用ルール）。ただし以下は対象外とし、従来通り実装前に計画を提示して承認を得てから進める：
+  - 金額計算ロジック・DBスキーマ・認証・wrangler.tomlに関わる変更
+  - D1スキーマ変更を伴うデプロイ（`db/schema.sql`の適用は明示的な承認後に行う）
 - コード修正は変更ファイルのみ提示する（差分がわかる形で）
 - 新しい意思決定や既知の不具合は `.claude/memory/` に追記していく
 - **見た目に関わる変更（HTML/CSS/レイアウト・文言追加）を行った場合、必ずPC幅とスマホ幅の両方で表示を確認する。**
