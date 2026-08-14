@@ -1,4 +1,5 @@
 @import url("tokens.css");
+@import url("base.css");
 
 * { box-sizing: border-box; }
 html { background: var(--bg); }

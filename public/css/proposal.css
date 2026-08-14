@@ -1,4 +1,5 @@
 @import url("tokens.css");
+@import url("base.css");
 
 * { box-sizing: border-box; }
 html { background: var(--bg); }
@@ -15,13 +16,7 @@ body {
 }
 a { color: inherit; text-decoration: none; }
 
-/* ---------------- ツールバー（画面表示のみ） ---------------- */
-.toolbar { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px clamp(16px, 4vw, 40px); }
-.toolbar-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
-.brand-link { display: inline-flex; align-items: center; gap: 10px; }
-.brand-icon { height: 22px; width: 22px; object-fit: contain; }
-.brand-word { font-family: var(--font-display); font-weight: 700; font-size: 0.95rem; color: var(--navy); }
-.brand-word em { font-style: normal; font-weight: 400; color: var(--ink-soft); }
+/* ---------------- ツールバー内ボタン（画面表示のみ） ---------------- */
 #print-btn {
   font-family: var(--font-display);
   font-weight: 700;

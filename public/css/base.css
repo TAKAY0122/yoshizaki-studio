@@ -1,0 +1,98 @@
+/* ============================================================
+   Aster Systems — Shared Header / Footer / Toolbar Chrome
+   全ページで重複していた .site-header / .brand* / .pill /
+   .back-link / .toolbar* をここに集約。tokens.css の直後に
+   @import し、各ページ側の .wrap { max-width: ... } は
+   ページごとに維持する（コンテンツ幅は変えない）。
+   ============================================================ */
+
+/* ---------------- サイトヘッダー（顧客向けナビページ共通） ---------------- */
+.site-header {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: saturate(1.1);
+}
+.site-header .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand-link { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+.brand-link:hover .brand-word { color: var(--gold-ink, var(--gold)); }
+.brand-icon { height: 28px; width: 28px; object-fit: contain; flex: none; display: block; }
+.brand-word {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--navy);
+  white-space: nowrap;
+  line-height: 1;
+}
+.brand-word em { font-style: normal; font-weight: 400; color: var(--ink-soft); margin-left: 2px; }
+.brand .pill {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--gold-ink);
+  background: var(--gold-soft);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.back-link { font-size: var(--step--1); color: var(--ink-soft); white-space: nowrap; }
+.back-link:hover { color: var(--ink); }
+
+/* ---------------- サイトフッター（顧客向けナビページ共通） ---------------- */
+.site-footer {
+  background: var(--navy);
+  color: rgba(255, 255, 255, 0.6);
+  padding: var(--space-4) clamp(16px, 4vw, 40px);
+}
+.site-footer .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+}
+.site-footer .foot-brand { font-size: var(--step--1); }
+.site-footer .foot-links {
+  display: flex;
+  gap: 18px;
+  font-size: var(--step--1);
+}
+.site-footer a { color: rgba(255, 255, 255, 0.75); }
+.site-footer a:hover { color: var(--gold); }
+
+/* ---------------- ツールバー（quote / proposal など書類ページ共通） ---------------- */
+.toolbar {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 14px clamp(16px, 4vw, 40px);
+}
+.toolbar-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.toolbar-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* ツールバー内のブランド表記はサイトヘッダーより一段静か（22px/0.95rem） */
+.toolbar .brand-icon,
+.toolbar-inner .brand-icon { height: 22px; width: 22px; }
+.toolbar .brand-word,
+.toolbar-inner .brand-word { font-family: var(--font-display); font-weight: 700; font-size: 0.95rem; color: var(--navy); }
