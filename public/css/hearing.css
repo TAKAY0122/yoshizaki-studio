@@ -57,6 +57,60 @@ a { color: inherit; text-decoration: none; }
 .banner-lines li { padding: 2px 0; }
 .banner-lines li::before { content: "・"; }
 
+/* ---------------- セクションナビ（今どこにいる／どこまで入力したかを表示） ---------------- */
+.section-nav {
+  position: sticky;
+  top: var(--header-h, 57px);
+  z-index: 9;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  margin: 0 calc(-1 * clamp(24px, 6vw, 40px));
+}
+.section-nav-inner {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 10px clamp(24px, 6vw, 40px);
+}
+.section-nav-inner::-webkit-scrollbar { display: none; }
+.sn-item {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 6px;
+  border-radius: var(--radius-pill);
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--ink-faint);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.2s var(--ease-studio), color 0.2s var(--ease-studio);
+}
+.sn-item:hover { background: var(--gold-soft); color: var(--ink); }
+.sn-item i {
+  font-style: normal;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--border);
+  color: var(--ink-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  flex: none;
+  transition: background 0.2s var(--ease-studio), color 0.2s var(--ease-studio);
+}
+.sn-item i::before { content: attr(data-num); }
+.sn-item.is-answered i { background: var(--navy); color: #fff; }
+.sn-item.is-answered i::before { content: "\2713"; }
+.sn-item.is-active { color: var(--navy); background: var(--gold-soft); }
+.sn-item.is-active i { background: var(--gold); color: var(--gold-ink); }
+
 /* ---------------- Form ---------------- */
 .hearing-form { padding: 24px 0 60px; }
 
@@ -67,6 +121,7 @@ a { color: inherit; text-decoration: none; }
   box-shadow: var(--shadow-card);
   padding: var(--space-4);
   margin-bottom: var(--space-3);
+  scroll-margin-top: var(--sec-offset, 130px);
   transition: box-shadow var(--transition-base);
 }
 .f-section:focus-within { box-shadow: var(--shadow-lift); }
@@ -278,4 +333,6 @@ footer.site-footer {
   .radio-group { gap: 6px; }
   .radio-opt { padding: 7px 12px; font-size: 0.8rem; }
   #ai-assist-btn { font-size: 0.8rem; padding: 10px 12px; }
+  .sn-item { padding: 5px 10px 5px 5px; font-size: 0.78rem; }
+  .sn-item i { width: 16px; height: 16px; font-size: 9px; }
 }

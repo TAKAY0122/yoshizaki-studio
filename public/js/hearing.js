@@ -100,14 +100,91 @@ function renderForm() {
   const root = document.getElementById("form-sections");
   root.innerHTML = config.sections
     .map(
-      (sec) => `
-    <div class="f-section">
+      (sec, i) => `
+    <div class="f-section" id="hearing-sec-${i}">
       <h2>${sec.title}</h2>
       ${sec.fields.map(fieldHtml).join("")}
     </div>
   `
     )
     .join("");
+}
+
+/* ---------------- セクションナビ（今どこにいる／どこまで入力したかを可視化） ---------------- */
+function sectionHasAnswer(sec) {
+  return sec.fields.some((f) => {
+    if (f.type === "select") return false;
+    if (f.type === "radio") return !!document.querySelector(`input[name="${f.id}"]:checked`);
+    const el = document.getElementById(`f_${f.id}`);
+    return !!(el && String(el.value || "").trim());
+  });
+}
+
+function renderSectionNav(config) {
+  const nav = document.createElement("nav");
+  nav.className = "section-nav";
+  nav.id = "section-nav";
+  nav.setAttribute("aria-label", "入力セクション");
+  nav.innerHTML = `<div class="section-nav-inner">${config.sections
+    .map(
+      (sec, i) => `
+      <button type="button" class="sn-item" data-target="hearing-sec-${i}">
+        <i data-num="${i + 1}"></i><span>${sec.title}</span>
+      </button>`
+    )
+    .join("")}</div>`;
+  document.getElementById("hearing-form").insertAdjacentElement("beforebegin", nav);
+  return nav;
+}
+
+function initSectionNav(config, form) {
+  const nav = renderSectionNav(config);
+  const navItems = Array.from(nav.querySelectorAll(".sn-item"));
+  const sections = config.sections.map((sec, i) => document.getElementById(`hearing-sec-${i}`));
+
+  const syncOffset = () => {
+    const headerH = document.querySelector(".site-header")?.offsetHeight || 57;
+    document.documentElement.style.setProperty("--header-h", `${headerH}px`);
+    const navH = nav.offsetHeight || 48;
+    document.documentElement.style.setProperty("--sec-offset", `${headerH + navH + 16}px`);
+  };
+  syncOffset();
+  window.addEventListener("resize", syncOffset);
+
+  const updateAnswered = (index) => {
+    const sec = config.sections[index];
+    navItems[index].classList.toggle("is-answered", sectionHasAnswer(sec));
+  };
+  config.sections.forEach((_, i) => updateAnswered(i));
+
+  navItems.forEach((btn, i) => {
+    btn.addEventListener("click", () => {
+      sections[i]?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+
+  form.addEventListener("input", (e) => {
+    const secEl = e.target.closest(".f-section");
+    if (!secEl) return;
+    const index = sections.indexOf(secEl);
+    if (index !== -1) updateAnswered(index);
+  });
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const index = sections.indexOf(entry.target);
+        if (index === -1) return;
+        navItems.forEach((el) => el.classList.remove("is-active"));
+        navItems[index].classList.add("is-active");
+      });
+    },
+    { rootMargin: "-45% 0px -50% 0px", threshold: 0 }
+  );
+  sections.forEach((sec) => sec && observer.observe(sec));
+
+  return { refresh: () => config.sections.forEach((_, i) => updateAnswered(i)) };
 }
 
 /* ---------------- 送信 ---------------- */
@@ -250,6 +327,7 @@ function initHearingForm() {
   const successPanel = document.getElementById("success-panel");
   const refCodeEl = document.getElementById("ref-code");
   initDraftAutosave(config, form);
+  initSectionNav(config, form);
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
