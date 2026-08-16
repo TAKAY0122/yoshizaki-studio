@@ -319,10 +319,28 @@ function initAiAssist(config) {
   });
 }
 
+/* 見積もりシミュレーターで入力済みのお名前・メールアドレスを引き継ぐ（再入力の手間を省く）。
+   URLにはPIIを含めたくないため、同一タブ内のsessionStorage経由でのみ受け渡す。 */
+function prefillContactFromEstimate() {
+  let carry = null;
+  try {
+    const raw = sessionStorage.getItem("ty-contact-carryover");
+    carry = raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    carry = null;
+  }
+  if (!carry) return;
+  const nameEl = document.getElementById("f_contact_name");
+  const emailEl = document.getElementById("f_email");
+  if (nameEl && !nameEl.value && carry.name) nameEl.value = carry.name;
+  if (emailEl && !emailEl.value && carry.email) emailEl.value = carry.email;
+}
+
 function initHearingForm() {
   renderForm();
   const estimateCtx = renderEstimateBanner();
   const config = HEARING_FORMS[window.HEARING_CATEGORY];
+  if (estimateCtx) prefillContactFromEstimate();
   initAiAssist(config);
   const form = document.getElementById("hearing-form");
   const successPanel = document.getElementById("success-panel");

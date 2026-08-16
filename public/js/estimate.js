@@ -543,6 +543,14 @@ els.issueBtn.addEventListener("click", async () => {
     return;
   }
 
+  // ヒアリングシートに進んだ際、お名前・メールアドレスの再入力を省けるよう、
+  // 同一タブ内でのみ有効なsessionStorageに一時保存する（URLには含めない）。
+  try {
+    sessionStorage.setItem("ty-contact-carryover", JSON.stringify({ name, email }));
+  } catch (e) {
+    // sessionStorageが使えない環境では何もしない
+  }
+
   els.summary.classList.remove("is-collapsed");
   const code = encodeEstimate();
   els.codeValue.textContent = code;
