@@ -162,5 +162,37 @@ table.items td.num, table.items th.num { text-align: right; font-family: var(--f
   .sheet-head { flex-direction: column; gap: 10px; }
   .sheet-meta { text-align: left; }
   .sheet-title { font-size: 1.3rem; }
-  table.items { display: block; overflow-x: auto; white-space: nowrap; }
+}
+
+/* 横スクロールでの見落としを避けるため、品目ごとにカード状に積んで表示する。
+   window.print()がスマホ幅から呼ばれた場合でも印刷/PDFは通常の表形式を保つよう、screen限定にする。 */
+@media screen and (max-width: 640px) {
+  table.items, table.items tbody { display: block; }
+  table.items thead { display: none; }
+  table.items tr {
+    display: block;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  table.items td {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 3px 0;
+    border-bottom: none;
+    white-space: normal;
+  }
+  table.items td:first-child {
+    display: block;
+    font-weight: 700;
+    padding-bottom: 6px;
+  }
+  table.items td.num::before {
+    content: attr(data-label);
+    font-family: var(--font-body);
+    font-weight: 500;
+    color: var(--ink-faint);
+    white-space: nowrap;
+  }
 }

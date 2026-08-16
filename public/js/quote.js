@@ -122,9 +122,9 @@ function renderQuote() {
       (i) => `
     <tr>
       <td>${i.name}</td>
-      <td class="num">${i.days !== null && i.days !== undefined ? formatDays(i.days) : "—"}</td>
-      <td class="num">${i.rate ? formatYen(i.rate) : "—"}</td>
-      <td class="num">${formatYen(i.amount)}</td>
+      <td class="num" data-label="人日数">${i.days !== null && i.days !== undefined ? formatDays(i.days) : "—"}</td>
+      <td class="num" data-label="人日単価">${i.rate ? formatYen(i.rate) : "—"}</td>
+      <td class="num" data-label="金額">${formatYen(i.amount)}</td>
     </tr>`
     )
     .join("");

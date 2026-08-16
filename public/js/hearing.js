@@ -389,6 +389,8 @@ function initHearingForm() {
     clearDraft();
     form.hidden = true;
     document.getElementById("estimate-banner").hidden = true;
+    const sectionNav = document.getElementById("section-nav");
+    if (sectionNav) sectionNav.hidden = true;
     successPanel.hidden = false;
     refCodeEl.textContent = refCode;
     successPanel.scrollIntoView?.({ behavior: "smooth", block: "start" });
