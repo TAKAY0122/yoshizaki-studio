@@ -848,7 +848,7 @@ function buildMypageNoticeHtml(caseId: string, mypageUrl: string): string {
 }
 
 app.post("/api/estimates/send", async (c) => {
-  if (!c.env.RESEND_API_KEY) return c.json({ error: "メール送信機能が未設定です（RESEND_API_KEY）" }, 503);
+  if (!c.env.RESEND_API_KEY) return c.json({ error: "メール送信機能が未設定です" }, 503);
 
   const body = await c.req.json().catch(() => null);
   const code: string = body?.code;
@@ -965,7 +965,7 @@ app.post("/api/estimates/send", async (c) => {
 });
 
 app.post("/api/admin/cases/:id/send-formal-quote", requireAuth, async (c) => {
-  if (!c.env.RESEND_API_KEY) return c.json({ error: "メール送信機能が未設定です（RESEND_API_KEY）" }, 503);
+  if (!c.env.RESEND_API_KEY) return c.json({ error: "メール送信機能が未設定です" }, 503);
   const id = c.req.param("id");
   const admin = c.get("admin");
 
@@ -1067,7 +1067,7 @@ function extractJson(raw: string): any {
 }
 
 app.post("/api/ai/suggest-estimate", async (c) => {
-  if (!c.env.ANTHROPIC_API_KEY) return c.json({ error: "AI機能が未設定です（ANTHROPIC_API_KEY）" }, 503);
+  if (!c.env.ANTHROPIC_API_KEY) return c.json({ error: "AI機能が未設定です" }, 503);
   const body = await c.req.json().catch(() => null);
   const description = body?.description?.trim();
   if (!description) return c.json({ error: "description は必須です" }, 400);
@@ -1089,12 +1089,13 @@ ${CATEGORY_SUMMARY}
     if (!parsed) return c.json({ error: "AI応答の解析に失敗しました" }, 502);
     return c.json({ ok: true, suggestion: parsed });
   } catch (err: any) {
-    return c.json({ error: err.message || "AI呼び出しに失敗しました" }, 502);
+    console.warn("suggest-estimate failed:", err);
+    return c.json({ error: "AI呼び出しに失敗しました" }, 502);
   }
 });
 
 app.post("/api/ai/hearing-assist", async (c) => {
-  if (!c.env.ANTHROPIC_API_KEY) return c.json({ error: "AI機能が未設定です（ANTHROPIC_API_KEY）" }, 503);
+  if (!c.env.ANTHROPIC_API_KEY) return c.json({ error: "AI機能が未設定です" }, 503);
   const body = await c.req.json().catch(() => null);
   const category = body?.category;
   const answers = body?.answers;
@@ -1116,7 +1117,8 @@ JSONのみを出力してください（前後に説明文を付けないこと�
     }
     return c.json({ ok: true, questions: parsed.questions.slice(0, 4) });
   } catch (err: any) {
-    return c.json({ error: err.message || "AI呼び出しに失敗しました" }, 502);
+    console.warn("hearing-assist failed:", err);
+    return c.json({ error: "AI呼び出しに失敗しました" }, 502);
   }
 });
 

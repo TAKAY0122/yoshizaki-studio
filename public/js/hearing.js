@@ -309,8 +309,9 @@ function initAiAssist(config) {
         resultEl.innerHTML = `<h4>ご確認いただきたい項目</h4><ul>${data.questions.map((q) => `<li>${q}</li>`).join("")}</ul>`;
       }
     } catch (err) {
+      console.warn("記入内容のチェックに失敗しました:", err);
       resultEl.hidden = false;
-      resultEl.innerHTML = `<h4>チェック結果</h4><p>チェックの取得に失敗しました（${err.message}）。そのままご記入・送信いただいて問題ありません。</p>`;
+      resultEl.innerHTML = `<h4>チェック結果</h4><p>チェックの取得に失敗しました。そのままご記入・送信いただいて問題ありません。</p>`;
     } finally {
       btn.disabled = false;
       btn.textContent = originalText;

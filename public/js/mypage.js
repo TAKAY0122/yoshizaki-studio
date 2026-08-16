@@ -68,7 +68,10 @@ async function doLookup() {
   try {
     const res = await fetch(`/api/mypage?id=${encodeURIComponent(id)}&email=${encodeURIComponent(email)}`);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "見つかりませんでした");
+    if (!res.ok) {
+      els.error.textContent = data.error || "確認に失敗しました。しばらくしてから再度お試しください。";
+      return;
+    }
 
     els.category.textContent = categoryLabel(data.case.category);
     renderTrack(data.case.status);
@@ -83,7 +86,8 @@ async function doLookup() {
     els.lookupCard.hidden = true;
     els.statusCard.hidden = false;
   } catch (err) {
-    els.error.textContent = err.message || "確認に失敗しました";
+    console.warn("マイページの確認に失敗しました:", err);
+    els.error.textContent = "通信エラーが発生しました。しばらくしてから再度お試しください。";
   } finally {
     els.btn.disabled = false;
     els.btn.textContent = "確認する";

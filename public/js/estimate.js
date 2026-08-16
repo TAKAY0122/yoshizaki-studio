@@ -577,8 +577,9 @@ els.issueBtn.addEventListener("click", async () => {
     statusEl.className = "send-status is-success";
     statusEl.innerHTML = `${escapeHtmlClient(email)} 宛に見積書をお送りしました。ご確認ください。<br /><span class="status-sub">※ 数分待っても届かない場合は、迷惑メールフォルダもご確認ください。</span>`;
   } catch (err) {
+    console.warn("見積もり送信でエラーが発生しました:", err);
     statusEl.className = "send-status is-error";
-    statusEl.textContent = `メール送信に失敗しました（${err.message}）。お手数ですが下記リンクから見積書をご確認ください。`;
+    statusEl.textContent = "メールの送信に失敗しました。お手数ですが、上記の見積もりコードまたはリンクから内容をご確認ください。";
   } finally {
     els.issueBtn.disabled = false;
   }
@@ -645,9 +646,10 @@ if (aiEls.btn) {
         document.getElementById("options-section").scrollIntoView?.({ behavior: "smooth", block: "start" });
       });
     } catch (err) {
+      console.warn("おすすめカテゴリの取得に失敗しました:", err);
       aiEls.status.textContent = "";
       aiEls.result.hidden = false;
-      aiEls.result.innerHTML = `<div class="ai-result-note">提案の取得に失敗しました（${err.message}）。カテゴリを直接選んでください。</div>`;
+      aiEls.result.innerHTML = `<div class="ai-result-note">提案の取得に失敗しました。お手数ですが、下記からカテゴリを直接選んでください。</div>`;
     } finally {
       aiEls.btn.disabled = false;
     }
