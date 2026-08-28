@@ -20,7 +20,7 @@ const HEARING_FORMS = {
   web: {
     title: "Webサイト制作ヒアリングシート",
     tag: "WEB",
-    badgeBg: "#e8f1fb",
+    badgeBg: "var(--gold-soft)",
     lede: "コーポレート・LP・EC・メディアなど、Web制作のご依頼内容を詳しくお伺いします。回答内容は御見積もり・ご提案の精度向上に活用させていただきます。",
     sections: [
       { title: "基本情報", fields: COMMON_FIELDS },
@@ -70,7 +70,7 @@ const HEARING_FORMS = {
   video: {
     title: "動画編集・映像制作ヒアリングシート",
     tag: "VIDEO",
-    badgeBg: "#fdeaec",
+    badgeBg: "var(--gold-soft)",
     lede: "カット編集・テロップ・モーション・SNS動画などの映像制作のご依頼内容を詳しくお伺いします。",
     sections: [
       { title: "基本情報", fields: COMMON_FIELDS },
@@ -109,7 +109,7 @@ const HEARING_FORMS = {
   app: {
     title: "アプリ開発ヒアリングシート",
     tag: "APP",
-    badgeBg: "#efeafb",
+    badgeBg: "var(--gold-soft)",
     lede: "iOS・Android・Webアプリの企画段階から要件定義までを詳しくお伺いします。",
     sections: [
       { title: "基本情報", fields: COMMON_FIELDS },
@@ -149,7 +149,7 @@ const HEARING_FORMS = {
   system: {
     title: "システム開発ヒアリングシート",
     tag: "SYSTEM",
-    badgeBg: "#e6f6f2",
+    badgeBg: "var(--gold-soft)",
     lede: "業務システム・CRM・受発注管理・API連携など、業務DX向けのご依頼内容を詳しくお伺いします。",
     sections: [
       { title: "基本情報", fields: COMMON_FIELDS },
@@ -188,7 +188,7 @@ const HEARING_FORMS = {
   design: {
     title: "グラフィック・デザインヒアリングシート",
     tag: "DESIGN",
-    badgeBg: "#fdecf5",
+    badgeBg: "var(--gold-soft)",
     lede: "ロゴ・チラシ・パンフ・名刺・ブランディングなど、印刷・グラフィック系のご依頼内容を詳しくお伺いします。",
     sections: [
       { title: "基本情報", fields: COMMON_FIELDS },

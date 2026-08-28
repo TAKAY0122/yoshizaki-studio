@@ -60,14 +60,19 @@
 
     <div class="estimate-layout wrap">
       <div class="estimate-main">
-        <section class="category-section">
+        <section class="category-section" id="category-section">
           <div id="category-grid"></div>
         </section>
 
         <section id="options-section" hidden>
+          <div class="selected-category-bar" id="selected-category-bar">
+            <span class="icon-badge" id="selected-category-badge"></span>
+            <span id="selected-category-label"></span>
+            <button type="button" id="change-category-btn" class="change-category-btn">カテゴリを変更する</button>
+          </div>
           <div id="bundle-section" class="bundle-section" hidden>
             <div class="bundle-section-head">
-              <span class="bundle-badge">⏱ おトクなセットプラン</span>
+              <span class="bundle-badge">おトクなセットプラン</span>
               <span id="bundle-subtitle" class="bundle-subtitle"></span>
             </div>
             <div id="bundle-grid" class="bundle-grid"></div>

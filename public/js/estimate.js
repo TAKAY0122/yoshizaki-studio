@@ -30,6 +30,11 @@ const els = {
   hearingLink: document.getElementById("hearing-link"),
   quoteLink: document.getElementById("quote-link"),
   stepsEl: document.getElementById("steps"),
+  categorySection: document.getElementById("category-section"),
+  selectedCategoryBar: document.getElementById("selected-category-bar"),
+  selectedCategoryBadge: document.getElementById("selected-category-badge"),
+  selectedCategoryLabel: document.getElementById("selected-category-label"),
+  changeCategoryBtn: document.getElementById("change-category-btn"),
   summaryToggle: document.getElementById("summary-toggle"),
   bundleSection: document.getElementById("bundle-section"),
   bundleGrid: document.getElementById("bundle-grid"),
@@ -222,9 +227,32 @@ function selectCategory(id, opts = {}) {
   renderCategoryGrid();
   renderBundles();
   renderOptions();
+  renderSelectedCategoryBar();
+  if (els.categorySection) els.categorySection.hidden = true;
   els.optionsSection.hidden = false;
   setStep(2);
   els.optionsSection.scrollIntoView?.({ behavior: "smooth", block: "start" });
+}
+
+/* ---------------- ウィザード表示制御（金額計算には関与しない） ---------------- */
+function renderSelectedCategoryBar() {
+  const cat = getCategory(state.categoryId);
+  if (!cat || !els.selectedCategoryBadge || !els.selectedCategoryLabel) return;
+  els.selectedCategoryBadge.textContent = cat.tag;
+  els.selectedCategoryBadge.style.background = cat.badge;
+  els.selectedCategoryLabel.textContent = cat.label;
+}
+
+if (els.changeCategoryBtn) {
+  els.changeCategoryBtn.addEventListener("click", () => {
+    els.optionsSection.hidden = true;
+    if (els.summary) els.summary.hidden = true;
+    const statusEl = document.getElementById("send-status");
+    if (statusEl) statusEl.hidden = true;
+    if (els.categorySection) els.categorySection.hidden = false;
+    setStep(1);
+    els.categorySection.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  });
 }
 
 /* ---------------- 仕様選択 ---------------- */

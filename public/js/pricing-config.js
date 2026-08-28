@@ -19,7 +19,7 @@ const CATEGORIES = [
     id: "web",
     label: "Webサイト制作",
     tag: "WEB",
-    badge: "#e8f1fb",
+    badge: "var(--gold-soft)",
     hearingUrl: "/hearing.html",
     dailyRate: 45000,
     plans: [
@@ -52,7 +52,7 @@ const CATEGORIES = [
     id: "video",
     label: "動画編集・映像制作",
     tag: "VIDEO",
-    badge: "#fdeaec",
+    badge: "var(--gold-soft)",
     hearingUrl: "/hearing_video.html",
     dailyRate: 40000,
     plans: [
@@ -67,7 +67,7 @@ const CATEGORIES = [
       { id: "telop", type: "checkbox", ...item("telop", "テロップ・字幕追加", 40000, 0.1) },
       { id: "bgm", type: "checkbox", ...item("bgm", "BGM・効果音追加", 40000, 0.1) },
       { id: "thumb", type: "checkbox", ...item("thumb", "サムネイル作成", 40000, 0.07) },
-      { id: "ai-subtitle", type: "checkbox", ...item("ai-subtitle", "AI字幕生成（多言語対応）", 40000, 0.8) },
+      { id: "ai-subtitle", type: "checkbox", ...item("ai-subtitle", "字幕生成（多言語対応）", 40000, 0.8) },
       { id: "narration", type: "checkbox", ...item("narration", "プロナレーション手配", 40000, 1.8) },
       { id: "resize", type: "checkbox", ...item("resize", "SNS投稿用リサイズ（縦横変換）", 40000, 0.2) },
       { id: "motion", type: "checkbox", ...item("motion", "アニメーション・モーション追加", 40000, 0.7) },
@@ -80,7 +80,7 @@ const CATEGORIES = [
     id: "app",
     label: "アプリ開発",
     tag: "APP",
-    badge: "#efeafb",
+    badge: "var(--gold-soft)",
     hearingUrl: "/hearing_app.html",
     dailyRate: 65000,
     plans: [
@@ -109,7 +109,7 @@ const CATEGORIES = [
     id: "design",
     label: "グラフィック・デザイン",
     tag: "DESIGN",
-    badge: "#fdecf5",
+    badge: "var(--gold-soft)",
     hearingUrl: "/hearing_design.html",
     dailyRate: 45000,
     plans: [
@@ -138,7 +138,7 @@ const CATEGORIES = [
     id: "system",
     label: "システム開発",
     tag: "SYSTEM",
-    badge: "#e6f6f2",
+    badge: "var(--gold-soft)",
     hearingUrl: "/hearing_system.html",
     dailyRate: 70000,
     plans: [
