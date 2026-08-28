@@ -4,14 +4,18 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "docs": "node docs/generators/run_all.js",
+    "docs:check": "node docs/generators/check_docs.js"
   },
   "dependencies": {
     "hono": "^4.6.0"
   },
   "devDependencies": {
-    "wrangler": "^3.90.0",
     "@cloudflare/workers-types": "^4.20250101.0",
-    "typescript": "^5.5.0"
+    "docx": "^9.7.1",
+    "pptxgenjs": "^4.0.1",
+    "typescript": "^5.5.0",
+    "wrangler": "^3.90.0"
   }
 }
