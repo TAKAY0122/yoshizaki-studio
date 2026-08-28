@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light" />
+<link rel="icon" type="image/png" href="/img/aster-icon.png" />
+<meta name="robots" content="noindex" />
+<title>アプリ構造ビューアー | Aster Systems</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/insights.css" />
+</head>
+<body>
+
+  <div id="auth-gate" class="centered-screen">
+    <p class="who">確認中…</p>
+  </div>
+
+  <div id="structure-view" style="display:none">
+    <header class="dash-header">
+      <div class="brand">
+        <img src="/img/aster-icon.png" alt="" />
+        <span>アプリ構造ビューアー</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <span class="who" id="who-label"></span>
+        <a class="settings-btn" href="/admin.html">案件一覧へ戻る</a>
+        <a class="settings-btn" href="/dashboard.html">経営ダッシュボード</a>
+        <button class="logout-btn" id="logout-btn">ログアウト</button>
+      </div>
+    </header>
+
+    <div class="dash-wrap">
+      <p class="tab-help">アプリ構成の一覧です。実装を変更した際は <code>public/js/structure-data.js</code> の内容も更新してください。</p>
+
+      <h2 class="section-title">概要</h2>
+      <div class="structure-overview" id="overview-list"></div>
+
+      <div class="tab-row">
+        <button type="button" class="tab-btn is-active" data-tab="pages">ページ構成</button>
+        <button type="button" class="tab-btn" data-tab="api">APIエンドポイント</button>
+        <button type="button" class="tab-btn" data-tab="db">DBテーブル</button>
+        <button type="button" class="tab-btn" data-tab="flow">業務フロー</button>
+      </div>
+
+      <div class="tab-panel" data-panel="pages">
+        <div class="table-scroll">
+          <table class="struct-table">
+            <thead><tr><th>画面</th><th>ルート</th><th>認証</th><th>役割</th></tr></thead>
+            <tbody id="pages-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab-panel" data-panel="api" hidden>
+        <div class="table-scroll">
+          <table class="struct-table">
+            <thead><tr><th>Method</th><th>Path</th><th>認証</th><th>用途</th></tr></thead>
+            <tbody id="api-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab-panel" data-panel="db" hidden>
+        <div class="table-scroll">
+          <table class="struct-table">
+            <thead><tr><th>テーブル</th><th>役割</th></tr></thead>
+            <tbody id="db-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab-panel" data-panel="flow" hidden>
+        <ol class="flow-list" id="flow-list"></ol>
+      </div>
+    </div>
+  </div>
+
+  <div id="error-view" class="centered-screen" style="display:none">
+    <div class="login-card">
+      <p id="error-message" style="margin:0 0 16px;"></p>
+      <a class="login-btn" href="/admin.html" style="display:block;text-align:center;">管理者ログインへ</a>
+    </div>
+  </div>
+
+  <script src="/js/structure-data.js"></script>
+  <script src="/js/structure.js"></script>
+</body>
+</html>

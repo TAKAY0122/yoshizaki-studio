@@ -1,0 +1,63 @@
+@import url("admin.css");
+
+/* ---------------- ダッシュボード・構造ビューアー共通 ---------------- */
+.section-title {
+  font-family: var(--font-display);
+  font-size: var(--step-0);
+  color: var(--navy);
+  margin: 28px 0 12px;
+}
+.section-title:first-child { margin-top: 0; }
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-card);
+}
+.stat-value { font-family: var(--font-mono); font-size: var(--step-2); font-weight: 700; color: var(--navy); line-height: 1.2; }
+.stat-label { font-size: var(--step--1); color: var(--ink-soft); margin-top: 4px; }
+.stat-note { font-size: 11px; color: var(--ink-faint); margin-top: 4px; }
+
+/* ---------------- 構造ビューアー ---------------- */
+.structure-overview { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 20px; }
+.structure-item { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: var(--step--1); }
+.structure-item strong { display: block; color: var(--navy); margin-bottom: 2px; }
+
+.struct-table { width: 100%; border-collapse: collapse; font-size: var(--step--1); margin-bottom: 4px; }
+.struct-table th { text-align: left; color: var(--ink-faint); font-weight: 700; padding: 8px 10px; border-bottom: 1px solid var(--border); background: var(--bg); }
+.struct-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.struct-table tr:last-child td { border-bottom: none; }
+.struct-table code { font-family: var(--font-mono); font-size: 12px; background: var(--bg); padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+
+.flow-list { list-style: none; margin: 0; padding: 0; counter-reset: flow; }
+.flow-list li {
+  counter-increment: flow;
+  position: relative;
+  padding: 10px 14px 10px 40px;
+  margin-bottom: 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: var(--step--1);
+}
+.flow-list li::before {
+  content: counter(flow);
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--gold); color: var(--gold-ink);
+  font-weight: 700; font-size: 11px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+@media (max-width: 640px) {
+  .stat-grid { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+  .struct-table { display: block; overflow-x: auto; white-space: nowrap; }
+}
