@@ -35,7 +35,7 @@ function escapeHtml(s) {
 
 els.logoutBtn.addEventListener("click", async () => {
   await api("/api/admin/logout", { method: "POST" }).catch(() => {});
-  location.href = "/admin.html";
+  location.href = "/admin/admin.html";
 });
 
 document.querySelectorAll(".tab-btn").forEach((btn) => {
@@ -89,7 +89,7 @@ async function init() {
     const me = await api("/api/admin/me");
     els.whoLabel.textContent = me.admin ? `${me.admin.name} さん` : "";
   } catch (e) {
-    location.replace("/admin.html");
+    location.replace("/admin/admin.html");
     return;
   }
 

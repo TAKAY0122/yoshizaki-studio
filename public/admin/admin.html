@@ -68,10 +68,11 @@
       </div>
       <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
         <span class="who" id="who-label"></span>
-        <a class="settings-btn" href="/dashboard.html">経営ダッシュボード</a>
-        <a class="settings-btn" href="/structure.html">アプリ構造ビューアー</a>
+        <a class="settings-btn" href="/admin/dashboard.html">経営ダッシュボード</a>
+        <a class="settings-btn" href="/admin/structure.html">アプリ構造ビューアー</a>
         <button class="settings-btn" id="email-settings-btn">メール設定</button>
         <button class="settings-btn" id="pricing-settings-btn">料金・キャンペーン設定</button>
+        <button class="settings-btn" id="auto-pipeline-btn">全自動AI対応</button>
         <button class="logout-btn" id="logout-btn">ログアウト</button>
       </div>
     </header>
@@ -129,9 +130,12 @@
 
       <div class="modal-section">
         <h3>書類の発行</h3>
-        <p class="tab-help">提案依頼書の画面では、ヒアリング回答から仕様書ドラフトを自動で組み立てて表示できます（コピーして仕様書・設計書の初稿に利用できます）。</p>
+        <p class="tab-help">提案依頼書の画面では、ヒアリング回答から仕様書ドラフトを自動で組み立てて表示できます（コピーして仕様書・設計書の初稿に利用できます）。要件定義書・仕様書（下書き）はAIが自動生成する社内専用資料です（お客様には送付されません）。</p>
         <div class="doc-actions">
           <button class="doc-btn" id="modal-open-proposal">提案依頼書を表示</button>
+          <button class="doc-btn" id="modal-open-requirements">要件定義書（下書き）を表示</button>
+          <button class="doc-btn" id="modal-open-spec">仕様書（下書き）を表示</button>
+          <button class="doc-btn" id="modal-open-timeline">やり取りタイムラインを表示</button>
           <button class="doc-btn" id="modal-send-formal-quote">正式な見積書を送付</button>
         </div>
         <span class="who" id="modal-doc-status"></span>
@@ -188,6 +192,35 @@
       <div class="status-row">
         <span id="es-status" class="who"></span>
         <button class="save-btn" id="email-settings-save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="auto-pipeline-modal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <h2>全自動AI対応（実験的機能）</h2>
+          <div class="who">ヒアリング完了時の自動判断・自動送信を切り替えます</div>
+        </div>
+        <button class="modal-close" id="auto-pipeline-close">&times;</button>
+      </div>
+
+      <div class="modal-section">
+        <p class="who" style="margin-bottom:8px;line-height:1.7;">
+          ONにすると、ヒアリング送信をきっかけに、AIがヒアリング回答からプランを選定し、<strong>人の確認を挟まず</strong>正式な御見積書メールを自動送信します。あわせて要件定義書・仕様書（社内専用）の下書きも自動生成されます。オーナー宛にも控えメールが届きます。<br /><br />
+          AIがプランを確信を持って選べない場合は、金額を確定させず「確認をお願いするメール」を自動送信するにとどめます（案件は「要確認」状態になります）。<br /><br />
+          有効化後の挙動は、各案件の「やり取りタイムライン」画面ですべて確認できます。
+        </p>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:700;">
+          <input type="checkbox" id="ap-enabled" />
+          <span>全自動対応を有効にする</span>
+        </label>
+      </div>
+
+      <div class="status-row">
+        <span id="ap-status" class="who"></span>
+        <button class="save-btn" id="auto-pipeline-save">保存</button>
       </div>
     </div>
   </div>

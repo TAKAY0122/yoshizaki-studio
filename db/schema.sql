@@ -171,3 +171,87 @@ CREATE TABLE IF NOT EXISTS campaigns (
 CREATE INDEX IF NOT EXISTS idx_bundles_category ON bundles(category_id);
 CREATE INDEX IF NOT EXISTS idx_delivery_active ON delivery_options(active);
 CREATE INDEX IF NOT EXISTS idx_campaigns_active ON campaigns(active);
+
+-- ============================================================
+-- AI自動対応パイプライン基盤（フェーズ1：安全網）
+-- ------------------------------------------------------------
+-- rate_limits: 公開エンドポイントの乱用防止用カウンタ。
+--   メールアドレス等の生の値は保存せず、SHA-256ハッシュのみ保存する。
+-- ============================================================
+CREATE TABLE IF NOT EXISTS rate_limits (
+  bucket TEXT NOT NULL,      -- 'hearing_email' | 'estimate_email' | 'ai_suggest' | 'ai_hearing_assist' 等
+  key_hash TEXT NOT NULL,    -- メールアドレス等のSHA-256ハッシュ（生の値は保存しない）
+  day TEXT NOT NULL,         -- 'YYYY-MM-DD'（UTC）
+  count INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (bucket, key_hash, day)
+);
+
+-- case_events: 案件に関するメール送受信・AI判定などのやり取りを時系列で記録する監査ログ。
+--   既存の case_logs（管理者による手動ステータス変更専用）とは役割を分け、変更しない。
+CREATE TABLE IF NOT EXISTS case_events (
+  id TEXT PRIMARY KEY,
+  case_id TEXT NOT NULL REFERENCES cases(id),
+  event_type TEXT NOT NULL,  -- 'outbound_email' | 'inbound_email' | 'ai_stage' | 'auto_status_change'
+  direction TEXT,            -- 'in' | 'out' | NULL
+  subject TEXT,
+  summary TEXT,              -- 一覧表示用の短い要約
+  payload_json TEXT,         -- 本文全文・AI入出力等（監査・再現用）
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_rate_limits_lookup ON rate_limits(bucket, key_hash, day);
+CREATE INDEX IF NOT EXISTS idx_case_events_case ON case_events(case_id);
+
+-- ============================================================
+-- AI自動対応パイプライン基盤（フェーズ4：新資料）
+-- ------------------------------------------------------------
+-- documents: AIが自動生成する要件定義書・仕様書（社内専用、非公開）。
+--   生HTMLではなく「見出し＋本文」の配列（content_json）で保存し、
+--   表示側（public/admin/requirements.html・spec.html）で一貫した
+--   スタイルを当てる。同一案件・同一種類で複数世代を残せるよう
+--   versionで管理する（表示は常に最新版）。
+-- ============================================================
+CREATE TABLE IF NOT EXISTS documents (
+  id TEXT PRIMARY KEY,
+  case_id TEXT NOT NULL REFERENCES cases(id),
+  doc_type TEXT NOT NULL,       -- 'requirements' | 'spec'
+  version INTEGER NOT NULL DEFAULT 1,
+  content_json TEXT NOT NULL,   -- [{ "heading": "...", "body": "..." }, ...]
+  generated_by TEXT NOT NULL DEFAULT 'ai',  -- 'ai' | 'admin'
+  status TEXT NOT NULL DEFAULT 'draft',      -- 'draft' | 'sent'
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_documents_case ON documents(case_id, doc_type, version);
+
+-- ============================================================
+-- AI自動対応パイプライン基盤（フェーズ6：全自動オーケストレーション）
+-- ------------------------------------------------------------
+-- ヒアリング送信時に「AIが判断してプラン選定・正式見積書送付・
+-- 要件定義書/仕様書生成まで人の確認なしで自動実行する」機能の
+-- フィーチャーフラグ（1行のみ、email_settingsと同じ単一設定行パターン）。
+-- 既定はOFF（0）。管理画面から明示的にONにするまで、既存の挙動
+-- （admin手動でsend-formal-quote）は変わらない。
+-- email_settingsへのALTER TABLEではなく新規テーブルにしているのは、
+-- 既存テーブルへのALTER TABLEはIF NOT EXISTS相当の再実行安全性が
+-- SQLiteに無く、schema.sqlを再実行した際にエラーになるため。
+-- ============================================================
+CREATE TABLE IF NOT EXISTS auto_pipeline_config (
+  id TEXT PRIMARY KEY DEFAULT 'default',
+  enabled INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- ============================================================
+-- AI自動対応パイプライン基盤（フェーズ7：メール受信）
+-- ------------------------------------------------------------
+-- 同じメール（Message-ID）を2回処理して案件を重複作成しないための
+-- 重複排除テーブル。cases.category が NOT NULL のため、既存の
+-- casesテーブルにカラム追加はしていない（新規テーブルで対応）。
+-- ============================================================
+CREATE TABLE IF NOT EXISTS inbound_messages (
+  message_id TEXT PRIMARY KEY,
+  case_id TEXT NOT NULL REFERENCES cases(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);

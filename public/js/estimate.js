@@ -14,6 +14,15 @@ let BUNDLES = [];
 let DELIVERY_OPTIONS = [];
 let ACTIVE_CAMPAIGN = null;
 
+// 金額計算の本体（computeTotalPure）はサーバー（src/index.ts）と共有する
+// public/js/pricing-calc.js に切り出してある。ページ読み込み時に一度だけ
+// 読み込み、以後は同期的に呼び出す（loadDynamicData() が解決を待つため、
+// カテゴリ・プランを選択できる状態になった時点では必ず読み込み済み）。
+let computeTotalPureRef = null;
+const pricingCalcReady = import("/js/pricing-calc.js").then((mod) => {
+  computeTotalPureRef = mod.computeTotalPure;
+});
+
 const els = {
   categoryGrid: document.getElementById("category-grid"),
   optionsSection: document.getElementById("options-section"),
@@ -95,6 +104,7 @@ function applyPricingOverrides(overrides) {
 }
 
 async function loadDynamicData() {
+  await pricingCalcReady;
   try {
     const [overridesRes, bundlesRes, deliveryRes, campaignRes] = await Promise.all([
       fetch("/api/pricing-overrides").then((r) => (r.ok ? r.json() : { overrides: [] })).catch(() => ({ overrides: [] })),
@@ -416,77 +426,20 @@ function renderOptions() {
 }
 
 /* ---------------- 集計 ---------------- */
+// 実際の計算ロジックは public/js/pricing-calc.js の computeTotalPure に
+// 集約されている（サーバー側 src/index.ts と共有するため）。
+// 万一モジュール読み込み前に呼ばれた場合は「未選択」と同じ形の値を返す
+// （誤った金額を一瞬でも表示しないため。loadDynamicData() が解決を待つので
+// 通常のユーザー操作でこの分岐に入ることはない）。
 function computeTotal() {
-  const cat = getCategory(state.categoryId);
-  if (!cat) return { total: 0, breakdown: [], recurringTotal: 0 };
-
-  const breakdown = [];
-  let total = 0;
-
-  const plan = cat.plans.find((p) => p.id === state.planId);
-  if (plan) {
-    total += plan.price;
-    breakdown.push({ label: plan.label, price: plan.price, days: plan.days });
-  }
-
-  cat.addons.forEach((a) => {
-    if (a.type === "checkbox" && state.addons[a.id]) {
-      total += a.price;
-      breakdown.push({ label: a.label, price: a.price, days: a.days });
-    } else if (a.type === "stepper" && state.addons[a.id]) {
-      const qty = state.addons[a.id];
-      const sub = qty * a.price;
-      total += sub;
-      breakdown.push({ label: `${a.label} × ${qty}`, price: sub, days: a.days * qty });
-    }
+  if (!computeTotalPureRef) return { total: 0, breakdown: [], recurringTotal: 0 };
+  return computeTotalPureRef(state, {
+    categories: CATEGORIES,
+    commonAddons: COMMON_ADDONS,
+    bundles: BUNDLES,
+    deliveryOptions: DELIVERY_OPTIONS,
+    activeCampaign: ACTIVE_CAMPAIGN,
   });
-
-  COMMON_ADDONS.forEach((a) => {
-    if (a.type === "checkbox" && state.addons[a.id]) {
-      total += a.price;
-      breakdown.push({ label: a.label, price: a.price, days: a.days });
-    }
-  });
-
-  const rush = COMMON_ADDONS.find((a) => a.type === "multiplier");
-  if (rush && state.addons[rush.id]) {
-    const before = total;
-    total = Math.round(total * rush.value);
-    breakdown.push({ label: rush.label, price: total - before });
-  }
-
-  // セットプラン割引
-  if (state.bundleId) {
-    const bundle = BUNDLES.find((b) => b.id === state.bundleId);
-    if (bundle) {
-      const before = total;
-      total = bundle.discount_type === "fixed"
-        ? Math.max(0, Math.round(total - bundle.discount_value))
-        : Math.round(total * (1 - bundle.discount_value / 100));
-      breakdown.push({ label: `${bundle.label}（セット割引）`, price: total - before });
-    }
-  }
-
-  // 納品スケジュールによる倍率
-  const delivery = DELIVERY_OPTIONS.find((d) => d.id === state.deliveryOptionId);
-  if (delivery && delivery.multiplier !== 1) {
-    const before = total;
-    total = Math.round(total * delivery.multiplier);
-    breakdown.push({ label: `${delivery.label}`, price: total - before });
-  }
-
-  // キャンペーン割引
-  if (ACTIVE_CAMPAIGN && (!ACTIVE_CAMPAIGN.category_id || ACTIVE_CAMPAIGN.category_id === state.categoryId)) {
-    const before = total;
-    total = ACTIVE_CAMPAIGN.discount_type === "fixed"
-      ? Math.max(0, Math.round(total - ACTIVE_CAMPAIGN.discount_value))
-      : Math.round(total * (1 - ACTIVE_CAMPAIGN.discount_value / 100));
-    breakdown.push({ label: `${ACTIVE_CAMPAIGN.label}（キャンペーン割引）`, price: total - before });
-  }
-
-  const recurringTotal = cat.recurring.reduce((sum, r) => sum + r.price, 0);
-
-  return { total, breakdown, recurringTotal };
 }
 
 function updateSummary() {
@@ -587,7 +540,7 @@ els.issueBtn.addEventListener("click", async () => {
   const cat = getCategory(state.categoryId);
   els.hearingLink.href = `${cat.hearingUrl}?code=${encodeURIComponent(code)}`;
   els.hearingLink.textContent = `${cat.label} のヒアリングシートへ進む →`;
-  if (els.quoteLink) els.quoteLink.href = `/quote.html?code=${encodeURIComponent(code)}`;
+  if (els.quoteLink) els.quoteLink.href = `/customer/quote.html?code=${encodeURIComponent(code)}`;
   els.codeResult.scrollIntoView?.({ behavior: "smooth", block: "center" });
 
   els.issueBtn.disabled = true;

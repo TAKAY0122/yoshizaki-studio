@@ -111,13 +111,13 @@ button { font-family: inherit; }
 .badge.won { background: #e2f6ea; color: #1a7a3c; }
 .badge.lost { background: #fbe8e6; color: #a3382c; }
 
-/* ---------------- モーダル共通（案件詳細・メール設定・料金設定） ---------------- */
-#case-modal, #email-settings-modal, #pricing-settings-modal {
+/* ---------------- モーダル共通（案件詳細・メール設定・料金設定・全自動AI対応） ---------------- */
+#case-modal, #email-settings-modal, #pricing-settings-modal, #auto-pipeline-modal {
   position: fixed; inset: 0; background: rgba(27,35,51,0.45);
   display: none; align-items: flex-start; justify-content: center;
   padding: clamp(16px, 5vw, 40px) 16px; overflow-y: auto; z-index: 50;
 }
-#case-modal.is-open, #email-settings-modal.is-open, #pricing-settings-modal.is-open { display: flex; }
+#case-modal.is-open, #email-settings-modal.is-open, #pricing-settings-modal.is-open, #auto-pipeline-modal.is-open { display: flex; }
 
 .f-label { display: block; font-size: var(--step--1); font-weight: 700; margin: 0 0 6px; color: var(--ink); }
 

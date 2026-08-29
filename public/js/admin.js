@@ -332,6 +332,44 @@ document.getElementById("email-settings-save")?.addEventListener("click", async 
   }
 });
 
+/* ---------------- 全自動AI対応（フィーチャーフラグ） ---------------- */
+const autoPipelineModal = document.getElementById("auto-pipeline-modal");
+const apEnabled = document.getElementById("ap-enabled");
+const apStatus = document.getElementById("ap-status");
+
+document.getElementById("auto-pipeline-btn")?.addEventListener("click", async () => {
+  apStatus.textContent = "読み込み中…";
+  autoPipelineModal.classList.add("is-open");
+  try {
+    const res = await api("/api/admin/auto-pipeline");
+    apEnabled.checked = !!res.enabled;
+    apStatus.textContent = "";
+  } catch (e) {
+    apStatus.textContent = "読み込みに失敗しました";
+  }
+});
+
+document.getElementById("auto-pipeline-close")?.addEventListener("click", () => {
+  autoPipelineModal.classList.remove("is-open");
+});
+autoPipelineModal?.addEventListener("click", (e) => {
+  if (e.target === autoPipelineModal) autoPipelineModal.classList.remove("is-open");
+});
+
+document.getElementById("auto-pipeline-save")?.addEventListener("click", async () => {
+  apStatus.textContent = "保存中…";
+  try {
+    await api("/api/admin/auto-pipeline", {
+      method: "PUT",
+      body: JSON.stringify({ enabled: apEnabled.checked }),
+    });
+    apStatus.textContent = "保存しました";
+    setTimeout(() => { apStatus.textContent = ""; }, 2000);
+  } catch (e) {
+    apStatus.textContent = "保存に失敗しました";
+  }
+});
+
 /* ---------------- 料金・キャンペーン設定 ---------------- */
 const pricingModal = document.getElementById("pricing-settings-modal");
 
@@ -711,7 +749,22 @@ els.modalSave.addEventListener("click", async () => {
 
 document.getElementById("modal-open-proposal")?.addEventListener("click", () => {
   if (!state.currentCaseId) return;
-  window.open(`/proposal.html?caseId=${encodeURIComponent(state.currentCaseId)}`, "_blank");
+  window.open(`/admin/proposal.html?caseId=${encodeURIComponent(state.currentCaseId)}`, "_blank");
+});
+
+document.getElementById("modal-open-requirements")?.addEventListener("click", () => {
+  if (!state.currentCaseId) return;
+  window.open(`/admin/requirements.html?caseId=${encodeURIComponent(state.currentCaseId)}`, "_blank");
+});
+
+document.getElementById("modal-open-spec")?.addEventListener("click", () => {
+  if (!state.currentCaseId) return;
+  window.open(`/admin/spec.html?caseId=${encodeURIComponent(state.currentCaseId)}`, "_blank");
+});
+
+document.getElementById("modal-open-timeline")?.addEventListener("click", () => {
+  if (!state.currentCaseId) return;
+  window.open(`/admin/case-timeline.html?caseId=${encodeURIComponent(state.currentCaseId)}`, "_blank");
 });
 
 document.getElementById("modal-send-formal-quote")?.addEventListener("click", async () => {

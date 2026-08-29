@@ -2,6 +2,12 @@ import { Hono } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { secureHeaders } from "hono/secure-headers";
 import type { Context, Next } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
+import { CATEGORY_INFO, CATEGORY_SUMMARY } from "./category-info";
+import { callClaude, extractJson } from "./claude-client";
+import { runAiPipelinePreview, generateDocument, selectPlanAndAddons, classifyInquiry, extractHearingFields } from "./ai-pipeline";
+import PostalMime from "postal-mime";
+import { CATEGORIES as SERVER_CATEGORIES, COMMON_ADDONS as SERVER_COMMON_ADDONS } from "./pricing-catalog";
 
 type Bindings = {
   ASSETS: Fetcher;
@@ -10,6 +16,10 @@ type Bindings = {
   RESEND_API_KEY: string;
   MAIL_FROM: string;
   COMPANY_NOTIFY_EMAIL: string;
+  // メール受信（email()ハンドラ）はHTTPリクエストを経由しないため、
+  // quote.html等へのリンクを組み立てる際の基準URLをこの変数から取る。
+  // 未設定時は本番の既定ドメインにフォールバックする（下記フォールバック値を参照）。
+  SITE_ORIGIN?: string;
 };
 
 type AdminUser = {
@@ -109,6 +119,68 @@ async function requireAuth(c: Context<{ Bindings: Bindings; Variables: Variables
 }
 
 // ============================================================
+// 乱用防止（レート制限）・監査ログ
+// ------------------------------------------------------------
+// 公開エンドポイント（ヒアリング送信・見積もり送信・AI呼び出し）には
+// これまでCAPTCHA・IP制限等が一切なかったため、D1ベースの簡易な
+// 日次レート制限を追加する（新規KV bindingは増やさない）。
+// メールアドレス等の生の値は保存せず、SHA-256ハッシュのみを保存する。
+// ============================================================
+async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return toHex(digest);
+}
+
+// 同一キー（メールアドレス等）からの1日あたりの回数を制限する。
+// 上限を超えた場合はtrueを返す（呼び出し側で429等を返すこと）。
+async function isRateLimited(db: D1Database, bucket: string, key: string, limitPerDay: number): Promise<boolean> {
+  const keyHash = await sha256Hex(key.toLowerCase());
+  const day = new Date().toISOString().slice(0, 10);
+  const row: any = await db
+    .prepare("SELECT count FROM rate_limits WHERE bucket = ? AND key_hash = ? AND day = ?")
+    .bind(bucket, keyHash, day)
+    .first();
+  const count = row ? Number(row.count) : 0;
+  if (count >= limitPerDay) return true;
+  await db
+    .prepare(
+      `INSERT INTO rate_limits (bucket, key_hash, day, count) VALUES (?, ?, ?, 1)
+       ON CONFLICT (bucket, key_hash, day) DO UPDATE SET count = count + 1`
+    )
+    .bind(bucket, keyHash, day)
+    .run();
+  return false;
+}
+
+// 案件に関するメール送受信・AI判定を時系列の監査ログとして記録する。
+// 失敗してもリクエスト自体は継続させる（ログ保存はベストエフォート）。
+async function logCaseEvent(
+  db: D1Database,
+  caseId: string,
+  eventType: "outbound_email" | "inbound_email" | "ai_stage" | "auto_status_change",
+  opts: { direction?: "in" | "out"; subject?: string; summary?: string; payload?: unknown } = {}
+): Promise<void> {
+  try {
+    await db
+      .prepare(
+        `INSERT INTO case_events (id, case_id, event_type, direction, subject, summary, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)`
+      )
+      .bind(
+        newId(),
+        caseId,
+        eventType,
+        opts.direction || null,
+        opts.subject || null,
+        opts.summary || null,
+        opts.payload !== undefined ? JSON.stringify(opts.payload) : null
+      )
+      .run();
+  } catch (err) {
+    console.warn("case_eventsの記録に失敗しました:", err);
+  }
+}
+
+// ============================================================
 // 公開API：ヒアリング送信の保存
 // ============================================================
 app.post("/api/hearings", async (c) => {
@@ -126,6 +198,12 @@ app.post("/api/hearings", async (c) => {
   const answerEmail = body.answers.email || "";
   const answerTel = body.answers.tel || "";
   const answerCompany = body.answers.company || "";
+
+  // 乱用防止：同一メール（無ければ送信元IP）からの1日あたりの送信回数を制限する。
+  const rateLimitKey = answerEmail || c.req.header("cf-connecting-ip") || "unknown";
+  if (await isRateLimited(c.env.DB, "hearing_email", rateLimitKey, 20)) {
+    return c.json({ error: "送信回数が上限に達しました。しばらくしてから再度お試しください" }, 429);
+  }
 
   // 見積もりシミュレーターの段階で既に案件（case）が作成されている場合は
   // その case を更新する（重複した案件が作られないようにするため）。
@@ -199,7 +277,7 @@ app.post("/api/hearings", async (c) => {
   if (c.env.RESEND_API_KEY && answerEmail && EMAIL_PATTERN.test(answerEmail)) {
     const url = new URL(c.req.url);
     const origin = `${url.protocol}//${url.host}`;
-    const mypageUrl = `${origin}/mypage.html`;
+    const mypageUrl = `${origin}/customer/mypage.html`;
     const catLabel = CATEGORY_INFO[body.category]?.label || body.category;
     const fromAddr = c.env.MAIL_FROM || "quotes@example.com";
     const finalCaseId: string = caseId!;
@@ -220,14 +298,66 @@ app.post("/api/hearings", async (c) => {
             <p style="margin-top:16px;color:#8a97a0;font-size:12px;">本メールは自動送信されています。心当たりのない場合は破棄してくださいませ。</p>
           </div>
         `;
+        const customerSubject = `【Aster Systems】ヒアリング内容を受け付けました（受付番号：${finalCaseId}）`;
         await sendEmailSafe(
           c.env.RESEND_API_KEY,
           fromAddr,
           [answerEmail],
-          `【Aster Systems】ヒアリング内容を受け付けました（受付番号：${finalCaseId}）`,
+          customerSubject,
           customerHtml,
           "ヒアリング確認メールの送信に失敗しました（ヒアリング自体の受付は継続）:"
         );
+        await logCaseEvent(c.env.DB, finalCaseId, "outbound_email", {
+          direction: "out",
+          subject: customerSubject,
+          summary: `ヒアリング確認メールを${answerEmail}へ送信`,
+          payload: { to: answerEmail, category: body.category },
+        });
+
+        // オーナーへの控えメール（顧客宛メールとは別送。相互のメールアドレスを見せないため）。
+        if (c.env.COMPANY_NOTIFY_EMAIL) {
+          const staffSubject = `【ヒアリング通知】${answerName || "お客様"}（${catLabel}）`;
+          const staffHtml = `
+            <div style="font-family:sans-serif;line-height:1.7;color:#1b2333;">
+              <p>ヒアリングシートが送信されました。</p>
+              <table style="border-collapse:collapse;margin:16px 0;">
+                <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">受付番号</td><td>${escapeHtml(finalCaseId)}</td></tr>
+                <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">お名前</td><td>${escapeHtml(answerName || "-")}</td></tr>
+                <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">メール</td><td>${escapeHtml(answerEmail)}</td></tr>
+                <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">カテゴリ</td><td>${escapeHtml(catLabel)}</td></tr>
+              </table>
+              <p style="color:#8a97a0;font-size:12px;">詳細は管理者ダッシュボード（/admin）で確認できます。</p>
+            </div>
+          `;
+          await sendEmailSafe(
+            c.env.RESEND_API_KEY,
+            fromAddr,
+            [c.env.COMPANY_NOTIFY_EMAIL],
+            staffSubject,
+            staffHtml,
+            "ヒアリング通知メール（社内向け）の送信に失敗しました:",
+            answerEmail
+          );
+        }
+      })()
+    );
+  }
+
+  // AI全自動パイプライン（フェーズ6、既定OFF）。有効時のみヒアリング完了を
+  // トリガーに発火する。レスポンスは待たせず、失敗してもヒアリング受付自体には影響しない。
+  {
+    const url = new URL(c.req.url);
+    const origin = `${url.protocol}//${url.host}`;
+    const finalCaseId: string = caseId!;
+    c.executionCtx.waitUntil(
+      (async () => {
+        try {
+          if (await isAutoPipelineEnabled(c.env.DB)) {
+            await runAutoPipeline(c.env, origin, finalCaseId);
+          }
+        } catch (err) {
+          console.warn("AI自動パイプラインの実行に失敗しました:", err);
+        }
       })()
     );
   }
@@ -329,6 +459,36 @@ async function getEmailSettings(db: D1Database) {
 app.get("/api/admin/email-settings", requireAuth, async (c) => {
   const settings = await getEmailSettings(c.env.DB);
   return c.json({ settings });
+});
+
+// ============================================================
+// 管理者：全自動AIパイプラインのON/OFF（フィーチャーフラグ）
+// ------------------------------------------------------------
+// 既定はOFF。ONにすると、ヒアリング送信時にrunAutoPipeline()が
+// 発火し、正式見積書・要件定義書・仕様書の自動生成/自動送信を
+// 人の確認なしで行うようになる（.claude/memory/decisions.md参照）。
+// ============================================================
+async function isAutoPipelineEnabled(db: D1Database): Promise<boolean> {
+  const row: any = await db.prepare("SELECT enabled FROM auto_pipeline_config WHERE id = 'default'").first();
+  return !!row && Number(row.enabled) === 1;
+}
+
+app.get("/api/admin/auto-pipeline", requireAuth, async (c) => {
+  const enabled = await isAutoPipelineEnabled(c.env.DB);
+  return c.json({ enabled });
+});
+
+app.put("/api/admin/auto-pipeline", requireAuth, async (c) => {
+  const body = await c.req.json().catch(() => null);
+  const enabled = body?.enabled ? 1 : 0;
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(
+    `INSERT INTO auto_pipeline_config (id, enabled, updated_at) VALUES ('default', ?, ?)
+     ON CONFLICT(id) DO UPDATE SET enabled = excluded.enabled, updated_at = excluded.updated_at`
+  )
+    .bind(enabled, now)
+    .run();
+  return c.json({ ok: true, enabled: !!enabled });
 });
 
 app.put("/api/admin/email-settings", requireAuth, async (c) => {
@@ -730,42 +890,198 @@ app.patch("/api/admin/cases/:id", requireAuth, async (c) => {
 });
 
 // ============================================================
+// 管理者：AI自動判断パイプラインのプレビュー実行
+// ------------------------------------------------------------
+// 自由文の問い合わせ（メール本文の貼り付け等）を分類→ヒアリング項目の
+// 構造化抽出→プラン/オプション選定まで実行し、結果をcase_eventsに記録して
+// 返すだけのプレビュー専用エンドポイント。ここでは送信・見積確定・
+// cases/estimatesテーブルの更新は一切行わない（フェーズ6で全自動化する際に
+// runAiPipelinePreview を実行フローから呼び出す）。
+// ============================================================
+app.post("/api/admin/cases/:id/ai/run-pipeline", requireAuth, async (c) => {
+  if (!c.env.ANTHROPIC_API_KEY) return c.json({ error: "AI機能が未設定です" }, 503);
+  const id = c.req.param("id");
+  const caseRow: any = await c.env.DB.prepare("SELECT id, category FROM cases WHERE id = ?").bind(id).first();
+  if (!caseRow) return c.json({ error: "案件が見つかりません" }, 404);
+
+  const body = await c.req.json().catch(() => null);
+  const freeText: string = (body?.freeText || "").trim();
+  if (!freeText) return c.json({ error: "freeText は必須です" }, 400);
+  if (freeText.length > 4000) return c.json({ error: "4000文字以内で入力してください" }, 400);
+
+  try {
+    const result = await runAiPipelinePreview(c.env.ANTHROPIC_API_KEY, freeText, caseRow.category || null);
+    // 金額はAI自身の判断（selection.aiTotal）をそのまま表示する
+    // （2026-08-29、ユーザー明示指示によりcomputeServerSideTotalへの委譲を撤廃）。
+    const estimatePreview = result.selection?.aiTotal != null ? { total: result.selection.aiTotal } : null;
+    await logCaseEvent(c.env.DB, id!, "ai_stage", {
+      summary: `AIパイプラインをプレビュー実行（カテゴリ:${result.classification.category ?? "不明"}、プラン:${result.selection?.planId ?? "未確定"}、金額:${result.selection?.aiTotal ?? "未確定"}）`,
+      payload: { freeText, ...result, estimatePreview },
+    });
+    return c.json({ ok: true, result, estimatePreview });
+  } catch (err: any) {
+    console.warn("run-pipeline failed:", err);
+    return c.json({ error: "AIパイプラインの実行に失敗しました" }, 502);
+  }
+});
+
+// ============================================================
+// 管理者：新資料（要件定義書・仕様書）の生成・閲覧
+// ------------------------------------------------------------
+// 社内専用（顧客への送付は行わない）。ヒアリング回答・見積もりコードの
+// デコード結果「だけ」を根拠にAIへ文章化させる。生成のたびに新しい
+// versionとしてINSERTし、表示・取得は常に最新版を返す。
+// ============================================================
+const DOCUMENT_TYPES = new Set(["requirements", "spec"]);
+
+function resolveEstimateLabels(categoryId: string | null, decoded: any): { planLabel: string | null; addonLabels: string[] } {
+  const cat = categoryId ? SERVER_CATEGORIES.find((c) => c.id === categoryId) : null;
+  if (!cat || !decoded) return { planLabel: null, addonLabels: [] };
+  const plan = cat.plans.find((p) => p.id === decoded.plan);
+  const addonLabels: string[] = [];
+  Object.entries(decoded.addons || {}).forEach(([addonId, val]) => {
+    if (!val) return;
+    const addon = cat.addons.find((a) => a.id === addonId) || SERVER_COMMON_ADDONS.find((a) => a.id === addonId);
+    if (addon) addonLabels.push(addon.label);
+  });
+  return { planLabel: plan ? plan.label : null, addonLabels };
+}
+
+// admin手動（documents/generate）とAI自動パイプラインの両方から呼べる共有関数。
+// ヒアリング・見積もり情報が無い場合はnullを返す（呼び出し側でエラー/スキップを判断する）。
+async function generateAndSaveDocument(
+  env: Bindings,
+  caseId: string,
+  docType: "requirements" | "spec"
+): Promise<{ id: string; version: number; sections: Awaited<ReturnType<typeof generateDocument>>; createdAt: string } | null> {
+  const caseRow: any = await env.DB.prepare("SELECT * FROM cases WHERE id = ?").bind(caseId).first();
+  if (!caseRow) return null;
+
+  const latestHearing: any = await env.DB.prepare(
+    "SELECT * FROM hearings WHERE case_id = ? ORDER BY created_at DESC LIMIT 1"
+  ).bind(caseId).first();
+  const latestEstimate: any = await env.DB.prepare(
+    "SELECT * FROM estimates WHERE case_id = ? ORDER BY created_at DESC LIMIT 1"
+  ).bind(caseId).first();
+  if (!latestHearing && !latestEstimate) return null;
+
+  const category = caseRow.category || latestHearing?.category || null;
+  const catInfo = category ? CATEGORY_INFO[category] : null;
+  const answers = latestHearing ? JSON.parse(latestHearing.answers) : {};
+  const decodedEstimate = latestEstimate ? JSON.parse(latestEstimate.items) : null;
+  const { planLabel, addonLabels } = resolveEstimateLabels(category, decodedEstimate);
+
+  const sections = await generateDocument(env.ANTHROPIC_API_KEY, docType, {
+    category: category || "",
+    categoryLabel: catInfo?.label || category || "",
+    answers,
+    planLabel,
+    addonLabels,
+    total: latestEstimate ? Number(latestEstimate.total_amount) : null,
+  });
+
+  const versionRow: any = await env.DB.prepare(
+    "SELECT MAX(version) as maxVersion FROM documents WHERE case_id = ? AND doc_type = ?"
+  ).bind(caseId, docType).first();
+  const version = (versionRow?.maxVersion || 0) + 1;
+  const docId = newId();
+  const now = new Date().toISOString();
+
+  await env.DB.prepare(
+    `INSERT INTO documents (id, case_id, doc_type, version, content_json, generated_by, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 'ai', 'draft', ?, ?)`
+  )
+    .bind(docId, caseId, docType, version, JSON.stringify(sections), now, now)
+    .run();
+
+  await logCaseEvent(env.DB, caseId, "ai_stage", {
+    summary: `${docType === "requirements" ? "要件定義書" : "仕様書"}の下書きを生成（version ${version}）`,
+    payload: { docType, version, sectionCount: sections.length },
+  });
+
+  return { id: docId, version, sections, createdAt: now };
+}
+
+app.post("/api/admin/cases/:id/documents/generate", requireAuth, async (c) => {
+  if (!c.env.ANTHROPIC_API_KEY) return c.json({ error: "AI機能が未設定です" }, 503);
+  const id = c.req.param("id")!;
+  const body = await c.req.json().catch(() => null);
+  const docType = body?.docType;
+  if (!DOCUMENT_TYPES.has(docType)) return c.json({ error: "docType は 'requirements' または 'spec' を指定してください" }, 400);
+
+  const caseRow = await c.env.DB.prepare("SELECT id FROM cases WHERE id = ?").bind(id).first();
+  if (!caseRow) return c.json({ error: "案件が見つかりません" }, 404);
+
+  try {
+    const doc = await generateAndSaveDocument(c.env, id, docType);
+    if (!doc) return c.json({ error: "この案件にはヒアリング回答・見積もり情報がまだありません" }, 400);
+    return c.json({
+      ok: true,
+      document: { id: doc.id, docType, version: doc.version, sections: doc.sections, generatedBy: "ai", status: "draft", createdAt: doc.createdAt },
+    });
+  } catch (err: any) {
+    console.warn("documents/generate failed:", err);
+    return c.json({ error: "資料の生成に失敗しました" }, 502);
+  }
+});
+
+app.get("/api/admin/cases/:id/documents/:docType", requireAuth, async (c) => {
+  const id = c.req.param("id");
+  const docType = c.req.param("docType") || "";
+  if (!DOCUMENT_TYPES.has(docType)) return c.json({ error: "docType は 'requirements' または 'spec' を指定してください" }, 400);
+
+  const row: any = await c.env.DB.prepare(
+    "SELECT * FROM documents WHERE case_id = ? AND doc_type = ? ORDER BY version DESC LIMIT 1"
+  ).bind(id, docType).first();
+  if (!row) return c.json({ error: "この案件にはまだ資料が生成されていません" }, 404);
+
+  return c.json({
+    ok: true,
+    document: {
+      id: row.id,
+      docType: row.doc_type,
+      version: row.version,
+      sections: JSON.parse(row.content_json),
+      generatedBy: row.generated_by,
+      status: row.status,
+      createdAt: row.created_at,
+    },
+  });
+});
+
+// ============================================================
+// 管理者：案件の全メール送受信・AI判定を時系列で確認する
+// （「やり取りは必ず見えるように」を満たす監査ログ閲覧）
+// ============================================================
+app.get("/api/admin/cases/:id/events", requireAuth, async (c) => {
+  const id = c.req.param("id");
+  const caseRow = await c.env.DB.prepare("SELECT id FROM cases WHERE id = ?").bind(id).first();
+  if (!caseRow) return c.json({ error: "案件が見つかりません" }, 404);
+
+  const rows = await c.env.DB.prepare(
+    "SELECT * FROM case_events WHERE case_id = ? ORDER BY created_at ASC"
+  ).bind(id).all();
+
+  const events = (rows.results || []).map((r: any) => ({
+    id: r.id,
+    eventType: r.event_type,
+    direction: r.direction,
+    subject: r.subject,
+    summary: r.summary,
+    payload: r.payload_json ? JSON.parse(r.payload_json) : null,
+    createdAt: r.created_at,
+  }));
+
+  return c.json({ ok: true, events });
+});
+
+// ============================================================
 // AI：見積もり提案・ヒアリング補助（Claude API）
 // ------------------------------------------------------------
-// CATEGORY_INFO は public/js/pricing-config.js の内容と手動で
-// 同期させる必要があります（カテゴリ・プラン構成を変更した場合は要更新）。
+// CATEGORY_INFO / CATEGORY_SUMMARY は src/category-info.ts に切り出してある
+// （src/ai-pipeline.ts と共有するため）。public/js/pricing-config.js の
+// 内容と手動で同期させる必要がある点は変わらない。
 // ============================================================
-const CATEGORY_INFO: Record<string, { label: string; hearingUrl: string; summary: string }> = {
-  web: {
-    label: "Webサイト制作",
-    hearingUrl: "/hearing.html",
-    summary: "プラン=LP/コーポレートサイト/WordPress制作/ECサイト/サイトリニューアル。オプション=CMS導入/問い合わせフォーム/レスポンシブ/SEO内部対策/GA4設定/SSL設定/サーバードメイン初期設定/多言語対応/予約カレンダー機能",
-  },
-  video: {
-    label: "動画編集・映像制作",
-    hearingUrl: "/hearing_video.html",
-    summary: "プラン=YouTube動画編集/TikTokショート動画編集/企業紹介PRムービー/撮影込み映像制作。オプション=テロップ字幕/BGM効果音/サムネイル作成/字幕生成/プロナレーション/SNSリサイズ/アニメーション追加",
-  },
-  app: {
-    label: "アプリ開発",
-    hearingUrl: "/hearing_app.html",
-    summary: "プラン=PWA簡易Webアプリ/iOSまたはAndroid単体/iOS+Android両対応/業務アプリ。オプション=SNSログイン/プッシュ通知/管理画面/ユーザー認証/決済機能/チャット機能/多言語対応",
-  },
-  system: {
-    label: "システム開発",
-    hearingUrl: "/hearing_system.html",
-    summary: "プラン=業務システム小規模/API連携外部サービス接続/SaaS Webアプリ開発/自動化ツール開発。オプション=管理画面構築/ユーザー認証/API連携/決済機能実装/クラウドインフラ構築/自動テストCI CD/セキュリティ診断",
-  },
-  design: {
-    label: "グラフィック・デザイン",
-    hearingUrl: "/hearing_design.html",
-    summary: "プラン=ロゴデザインシンプル/ロゴデザイン本格オリジナル/名刺デザイン/チラシフライヤー/ブランドVI設計一式。オプション=カラーバリエーション追加/修正回数追加/印刷用データ入稿対応/SNSアイコンバナーセット/ブランドガイドライン作成/封筒レターヘッドデザイン/商品パッケージデザイン",
-  },
-};
-
-const CATEGORY_SUMMARY = Object.entries(CATEGORY_INFO)
-  .map(([id, c]) => `- ${id}（${c.label}）: ${c.summary}`)
-  .join("\n");
 
 function decodeEstimateCode(code: string): any {
   try {
@@ -773,6 +1089,13 @@ function decodeEstimateCode(code: string): any {
   } catch (e) {
     return null;
   }
+}
+
+// public/js/estimate.js の encodeEstimate() と同一の方式（Unicode安全なBase64）。
+// AI自動パイプラインがプラン/オプションを選定した場合に、既存のquote.html等が
+// そのまま使える「見積もりコード」をサーバー側で発行するために使う。
+function encodeEstimateServerSide(payload: { v: number; cat: string; plan: string; addons: Record<string, boolean | number>; total: number; ts: number }): string {
+  return btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
 }
 
 function formatYenJP(n: number): string {
@@ -858,6 +1181,10 @@ app.post("/api/estimates/send", async (c) => {
     return c.json({ error: "code, name, email は必須です" }, 400);
   }
 
+  if (await isRateLimited(c.env.DB, "estimate_email", email, 20)) {
+    return c.json({ error: "送信回数が上限に達しました。しばらくしてから再度お試しください" }, 429);
+  }
+
   const decoded = decodeEstimateCode(code);
   if (!decoded || !decoded.cat) return c.json({ error: "見積もりコードが不正です" }, 400);
   const catInfo = CATEGORY_INFO[decoded.cat];
@@ -882,9 +1209,9 @@ app.post("/api/estimates/send", async (c) => {
 
   const url = new URL(c.req.url);
   const origin = `${url.protocol}//${url.host}`;
-  const quoteUrl = `${origin}/quote.html?code=${encodeURIComponent(code)}`;
+  const quoteUrl = `${origin}/customer/quote.html?code=${encodeURIComponent(code)}`;
   const hearingUrl = `${origin}${catInfo.hearingUrl}?code=${encodeURIComponent(code)}&caseId=${encodeURIComponent(caseId)}`;
-  const mypageUrl = `${origin}/mypage.html`;
+  const mypageUrl = `${origin}/customer/mypage.html`;
   const total = decoded.total || 0;
   const low = formatYenJP(total * 0.9);
   const high = formatYenJP(total * 1.15);
@@ -958,34 +1285,51 @@ app.post("/api/estimates/send", async (c) => {
       }
 
       await Promise.all(tasks);
+      await logCaseEvent(c.env.DB, caseId, "outbound_email", {
+        direction: "out",
+        subject: `【Aster Systems】御見積書のご案内（${catInfo.label}）`,
+        summary: `見積もりメールを${email}へ送信（概算 ${low}〜${high}）`,
+        payload: { to: email, category: decoded.cat, total },
+      });
     })()
   );
 
   return c.json({ ok: true, caseId });
 });
 
-app.post("/api/admin/cases/:id/send-formal-quote", requireAuth, async (c) => {
-  if (!c.env.RESEND_API_KEY) return c.json({ error: "メール送信機能が未設定です" }, 503);
-  const id = c.req.param("id");
-  const admin = c.get("admin");
+class QuoteError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
 
-  const caseRow: any = await c.env.DB.prepare("SELECT * FROM cases WHERE id = ?").bind(id).first();
-  if (!caseRow) return c.json({ error: "案件が見つかりません" }, 404);
-  if (!caseRow.email) return c.json({ error: "お客様のメールアドレスが登録されていません" }, 400);
-  if (!caseRow.estimate_code) return c.json({ error: "この案件には見積もりコードがありません" }, 400);
+// 正式見積書の送付を admin 手動（send-formal-quote）と AI自動パイプライン
+// （runAutoPipeline）の両方から共通で呼べるようにした共有関数。
+async function issueFormalQuote(
+  env: Bindings,
+  origin: string,
+  caseId: string,
+  opts: { triggeredBy: "admin" | "auto"; adminId?: string; adminName?: string }
+): Promise<{ email: string; total: number }> {
+  if (!env.RESEND_API_KEY) throw new QuoteError("メール送信機能が未設定です", 503);
+
+  const caseRow: any = await env.DB.prepare("SELECT * FROM cases WHERE id = ?").bind(caseId).first();
+  if (!caseRow) throw new QuoteError("案件が見つかりません", 404);
+  if (!caseRow.email) throw new QuoteError("お客様のメールアドレスが登録されていません", 400);
+  if (!caseRow.estimate_code) throw new QuoteError("この案件には見積もりコードがありません", 400);
 
   const decoded = decodeEstimateCode(caseRow.estimate_code);
-  if (!decoded) return c.json({ error: "見積もりコードの解析に失敗しました" }, 400);
+  if (!decoded) throw new QuoteError("見積もりコードの解析に失敗しました", 400);
   const catInfo = CATEGORY_INFO[caseRow.category];
-  if (!catInfo) return c.json({ error: "不明なカテゴリです" }, 400);
+  if (!catInfo) throw new QuoteError("不明なカテゴリです", 400);
 
-  const url = new URL(c.req.url);
-  const origin = `${url.protocol}//${url.host}`;
-  const quoteUrl = `${origin}/quote.html?code=${encodeURIComponent(caseRow.estimate_code)}`;
-  const mypageUrl = `${origin}/mypage.html`;
+  const quoteUrl = `${origin}/customer/quote.html?code=${encodeURIComponent(caseRow.estimate_code)}`;
+  const mypageUrl = `${origin}/customer/mypage.html`;
   const total = caseRow.estimate_total || decoded.total || 0;
-  const fromAddr = c.env.MAIL_FROM || "quotes@example.com";
-  const emailSettings = await getEmailSettings(c.env.DB);
+  const fromAddr = env.MAIL_FROM || "quotes@example.com";
+  const emailSettings = await getEmailSettings(env.DB);
   const customerName = caseRow.customer_name || "お客様";
 
   const html = `
@@ -998,25 +1342,249 @@ app.post("/api/admin/cases/:id/send-formal-quote", requireAuth, async (c) => {
         <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">御見積金額</td><td style="font-weight:bold;">${formatYenJP(total)}（税別）</td></tr>
       </table>
       <p><a href="${quoteUrl}" style="display:inline-block;background:#c9a227;color:#1b2333;padding:10px 20px;border-radius:999px;text-decoration:none;font-weight:bold;">正式な御見積書を見る</a></p>
-      ${buildMypageNoticeHtml(id!, mypageUrl)}
+      ${buildMypageNoticeHtml(caseId, mypageUrl)}
       ${buildCustomNoticeHtml(emailSettings.custom_notice)}
       ${buildSignatureHtml(emailSettings)}
       <p style="margin-top:16px;color:#8a97a0;font-size:12px;">本メールは自動送信されています。心当たりのない場合は破棄してくださいませ。</p>
     </div>
   `;
 
-  await sendResendEmail(c.env.RESEND_API_KEY, fromAddr, [caseRow.email], `【Aster Systems】正式御見積書のご案内（${catInfo.label}）`, html);
+  const formalSubject = `【Aster Systems】正式御見積書のご案内（${catInfo.label}）`;
+  await sendResendEmail(env.RESEND_API_KEY, fromAddr, [caseRow.email], formalSubject, html);
 
   const now = new Date().toISOString();
-  await c.env.DB.prepare("UPDATE cases SET status = 'quoted', updated_at = ? WHERE id = ?").bind(now, id).run();
-  await c.env.DB.prepare(
+  await env.DB.prepare("UPDATE cases SET status = 'quoted', updated_at = ? WHERE id = ?").bind(now, caseId).run();
+
+  const noteSuffix = opts.triggeredBy === "auto" ? "（AI自動パイプラインによる自動送信）" : "";
+  await env.DB.prepare(
     `INSERT INTO case_logs (id, case_id, note, status_before, status_after, admin_id) VALUES (?, ?, ?, ?, ?, ?)`
   )
-    .bind(newId(), id, "正式な見積書をメール送信", caseRow.status, "quoted", admin.id)
+    .bind(newId(), caseId, `正式な見積書をメール送信${noteSuffix}`, caseRow.status, "quoted", opts.adminId || null)
     .run();
 
-  return c.json({ ok: true, email: caseRow.email });
+  await logCaseEvent(env.DB, caseId, "outbound_email", {
+    direction: "out",
+    subject: formalSubject,
+    summary:
+      opts.triggeredBy === "auto"
+        ? `正式見積書メールを${caseRow.email}へ自動送信（${formatYenJP(total)}）`
+        : `正式見積書メールを${caseRow.email}へ送信（${formatYenJP(total)}、担当:${opts.adminName}）`,
+    payload: { to: caseRow.email, total, triggeredBy: opts.triggeredBy, adminId: opts.adminId || null },
+  });
+
+  // オーナーへの控えメール（正式見積書は従来オーナーに一切通知されていなかったため追加）。
+  if (env.COMPANY_NOTIFY_EMAIL) {
+    const staffHtml = `
+      <div style="font-family:sans-serif;line-height:1.7;color:#1b2333;">
+        <p>正式な御見積書を送信しました（${opts.triggeredBy === "auto" ? "AI自動パイプラインによる自動送信" : `担当：${escapeHtml(opts.adminName || "")}`}）。</p>
+        <table style="border-collapse:collapse;margin:16px 0;">
+          <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">受付番号</td><td>${escapeHtml(caseId)}</td></tr>
+          <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">お客様</td><td>${escapeHtml(customerName)}</td></tr>
+          <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">メール</td><td>${escapeHtml(caseRow.email)}</td></tr>
+          <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">カテゴリ</td><td>${escapeHtml(catInfo.label)}</td></tr>
+          <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">御見積金額</td><td>${formatYenJP(total)}（税別）</td></tr>
+        </table>
+      </div>
+    `;
+    await sendEmailSafe(
+      env.RESEND_API_KEY,
+      fromAddr,
+      [env.COMPANY_NOTIFY_EMAIL],
+      `【正式見積書送付】${customerName} 様（${catInfo.label}）`,
+      staffHtml,
+      "正式見積書の社内通知メール送信に失敗しました（見積書自体の送付は完了済み）:",
+      caseRow.email
+    );
+  }
+
+  return { email: caseRow.email, total };
+}
+
+app.post("/api/admin/cases/:id/send-formal-quote", requireAuth, async (c) => {
+  const id = c.req.param("id")!;
+  const admin = c.get("admin");
+  const url = new URL(c.req.url);
+  const origin = `${url.protocol}//${url.host}`;
+
+  try {
+    const result = await issueFormalQuote(c.env, origin, id, { triggeredBy: "admin", adminId: admin.id, adminName: admin.name });
+    return c.json({ ok: true, email: result.email });
+  } catch (err: any) {
+    const status = err instanceof QuoteError ? err.status : 500;
+    if (!(err instanceof QuoteError)) console.warn("send-formal-quote failed:", err);
+    return c.json({ error: err.message || "送信に失敗しました" }, status as ContentfulStatusCode);
+  }
 });
+
+// AIがプランを確信を持って選定できなかった場合に送る、確認をお願いするメール。
+// 金額は一切記載しない（決まっていないものを決まっているかのように書かない）。
+async function sendClarificationEmail(
+  env: Bindings,
+  origin: string,
+  caseRow: any,
+  unresolvedQuestions: string[]
+): Promise<void> {
+  if (!env.RESEND_API_KEY || !caseRow.email || !EMAIL_PATTERN.test(caseRow.email)) return;
+  const fromAddr = env.MAIL_FROM || "quotes@example.com";
+  const emailSettings = await getEmailSettings(env.DB);
+  const customerName = caseRow.customer_name || "お客様";
+  const mypageUrl = `${origin}/customer/mypage.html`;
+
+  const questionsHtml = unresolvedQuestions.length
+    ? `<ul>${unresolvedQuestions.map((q) => `<li>${escapeHtml(q)}</li>`).join("")}</ul>`
+    : "<p>いただいたご依頼内容について、担当者より改めてご連絡させていただきます。</p>";
+
+  const html = `
+    <div style="font-family:sans-serif;line-height:1.7;color:#1b2333;">
+      <p>${escapeHtml(customerName)} 様</p>
+      <p>この度はヒアリングにご協力いただき、誠にありがとうございます。<br />
+      より正確なお見積もりをご案内するため、以下の点について追加でご確認させてください。</p>
+      ${questionsHtml}
+      ${buildMypageNoticeHtml(caseRow.id, mypageUrl)}
+      ${buildCustomNoticeHtml(emailSettings.custom_notice)}
+      ${buildSignatureHtml(emailSettings)}
+      <p style="margin-top:16px;color:#8a97a0;font-size:12px;">本メールは自動送信されています。心当たりのない場合は破棄してくださいませ。</p>
+    </div>
+  `;
+  const subject = "【Aster Systems】ご依頼内容について確認をお願いいたします";
+  await sendEmailSafe(env.RESEND_API_KEY, fromAddr, [caseRow.email], subject, html, "確認依頼メールの送信に失敗しました:");
+  await logCaseEvent(env.DB, caseRow.id, "outbound_email", {
+    direction: "out",
+    subject,
+    summary: `AIがプランを確定できなかったため確認依頼メールを${caseRow.email}へ自動送信`,
+    payload: { to: caseRow.email, unresolvedQuestions },
+  });
+
+  if (env.COMPANY_NOTIFY_EMAIL) {
+    const staffHtml = `
+      <div style="font-family:sans-serif;line-height:1.7;color:#1b2333;">
+        <p>AI自動パイプラインが、以下の案件でプランを確定できませんでした（正式見積書は自動送信していません）。</p>
+        <table style="border-collapse:collapse;margin:16px 0;">
+          <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">受付番号</td><td>${escapeHtml(caseRow.id)}</td></tr>
+          <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">お客様</td><td>${escapeHtml(customerName)}</td></tr>
+          <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">メール</td><td>${escapeHtml(caseRow.email)}</td></tr>
+        </table>
+        ${questionsHtml}
+        <p style="color:#8a97a0;font-size:12px;">案件一覧（/admin）で内容を確認し、必要に応じて手動で対応してください。</p>
+      </div>
+    `;
+    await sendEmailSafe(
+      env.RESEND_API_KEY,
+      fromAddr,
+      [env.COMPANY_NOTIFY_EMAIL],
+      `【要確認】AIがプラン確定できませんでした（${customerName} 様）`,
+      staffHtml,
+      "確認依頼の社内通知メール送信に失敗しました:",
+      caseRow.email
+    );
+  }
+}
+
+// ============================================================
+// AI全自動オーケストレーション（フェーズ6）
+// ------------------------------------------------------------
+// 起点はサイト操作（ヒアリング送信）のみ。auto_pipeline_config.enabled
+// がONの場合のみ、/api/hearings のPOST処理から waitUntil() で発火する。
+//
+// 金額はAI自身の判断（selectPlanAndAddonsが返すaiTotal）をそのまま使う
+// （2026-08-29、ユーザー明示指示により決定的ロジックへの委譲・
+// ホワイトリスト照合を撤廃。経緯は.claude/memory/decisions.md参照）。
+// AIが金額を全く判断できなかった場合のみ、確定させず確認メールを送るに
+// とどめる。
+// ============================================================
+async function runAutoPipeline(env: Bindings, origin: string, caseId: string): Promise<void> {
+  if (!env.ANTHROPIC_API_KEY || !env.RESEND_API_KEY) {
+    console.warn("auto pipeline skipped: ANTHROPIC_API_KEY/RESEND_API_KEYが未設定です");
+    return;
+  }
+
+  const caseRow: any = await env.DB.prepare("SELECT * FROM cases WHERE id = ?").bind(caseId).first();
+  if (!caseRow) return;
+
+  const latestHearing: any = await env.DB.prepare(
+    "SELECT * FROM hearings WHERE case_id = ? ORDER BY created_at DESC LIMIT 1"
+  ).bind(caseId).first();
+  if (!latestHearing) return;
+
+  const category = caseRow.category || latestHearing.category;
+  const answers = JSON.parse(latestHearing.answers);
+
+  // すでに見積もりシミュレーターでお客様自身が確定した見積もりコードがある場合は、
+  // その金額をそのまま正として扱う。それ以外はAI自身が金額を判断する
+  // （2026-08-29、ユーザー明示指示によりcomputeServerSideTotalへの委譲を撤廃）。
+  if (!caseRow.estimate_code) {
+    let selection;
+    try {
+      selection = await selectPlanAndAddons(env.ANTHROPIC_API_KEY, category, answers);
+    } catch (err: any) {
+      // AI呼び出し自体の失敗（APIキー不正・障害等）は「判断できなかった」とは区別する。
+      // 誤解を招く確認メールは送らず、人が案件一覧から手動対応できる状態のまま留める。
+      console.warn("自動パイプライン：プラン選定のAI呼び出しに失敗しました:", err);
+      await logCaseEvent(env.DB, caseId, "ai_stage", {
+        summary: `自動パイプライン：プラン選定のAI呼び出しに失敗しました（${err.message || err}）`,
+      });
+      return;
+    }
+    await logCaseEvent(env.DB, caseId, "ai_stage", {
+      summary: `自動パイプライン：プラン・金額をAIが判断（プラン:${selection.planId ?? "未確定"}、金額:${selection.aiTotal ?? "未確定"}、確信度:${selection.confidence}）`,
+      payload: selection,
+    });
+
+    if (selection.aiTotal === null) {
+      await sendClarificationEmail(env, origin, caseRow, selection.unresolvedQuestions);
+      const now = new Date().toISOString();
+      await env.DB.prepare("UPDATE cases SET status = 'needs_info', updated_at = ? WHERE id = ?").bind(now, caseId).run();
+      await logCaseEvent(env.DB, caseId, "auto_status_change", {
+        summary: "AIが金額を判断できなかったため needs_info に変更し、確認メールを自動送信しました",
+      });
+      return;
+    }
+
+    const addonsMap = Object.fromEntries(selection.addonIds.map((addonId) => [addonId, true]));
+    const total = selection.aiTotal;
+
+    const estimatePayload = { v: 1, cat: category, plan: selection.planId || "ai-judged", addons: addonsMap, total, ts: Date.now() };
+    const estimateCode = encodeEstimateServerSide(estimatePayload);
+    const now = new Date().toISOString();
+
+    await env.DB.prepare(`INSERT INTO estimates (id, case_id, items, total_amount, created_at) VALUES (?, ?, ?, ?, ?)`)
+      .bind(newId(), caseId, JSON.stringify(estimatePayload), total, now)
+      .run();
+    await env.DB.prepare("UPDATE cases SET estimate_code = ?, estimate_total = ?, updated_at = ? WHERE id = ?")
+      .bind(estimateCode, total, now, caseId)
+      .run();
+
+    caseRow.estimate_code = estimateCode;
+    caseRow.estimate_total = total;
+
+    await logCaseEvent(env.DB, caseId, "auto_status_change", {
+      summary: `自動パイプライン：AIの判断で見積もりを確定（${formatYenJP(total)}）`,
+      payload: { planId: selection.planId, addonIds: selection.addonIds, total, reasoning: selection.reasoning },
+    });
+  }
+
+  // 資料生成（要件定義書・仕様書、社内専用）。失敗しても見積書の自動送信は継続する。
+  for (const docType of ["requirements", "spec"] as const) {
+    try {
+      await generateAndSaveDocument(env, caseId, docType);
+    } catch (err: any) {
+      console.warn(`自動パイプライン：${docType}の生成に失敗しました:`, err);
+      await logCaseEvent(env.DB, caseId, "ai_stage", {
+        summary: `自動パイプライン：${docType === "requirements" ? "要件定義書" : "仕様書"}の生成に失敗しました（${err.message || err}）`,
+      });
+    }
+  }
+
+  // 正式見積書の自動送信
+  try {
+    await issueFormalQuote(env, origin, caseId, { triggeredBy: "auto" });
+  } catch (err: any) {
+    console.warn("自動パイプライン：正式見積書の自動送信に失敗しました:", err);
+    await logCaseEvent(env.DB, caseId, "ai_stage", {
+      summary: `自動見積書送信に失敗しました: ${err.message || err}`,
+    });
+  }
+}
 
 function escapeHtml(s: string): string {
   return String(s).replace(/[&<>"']/g, (ch) => {
@@ -1025,53 +1593,17 @@ function escapeHtml(s: string): string {
   });
 }
 
-async function callClaude(apiKey: string, system: string, userText: string): Promise<string> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1000,
-      system,
-      messages: [{ role: "user", content: userText }],
-    }),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Claude API error ${res.status}: ${text.slice(0, 300)}`);
-  }
-  const data: any = await res.json();
-  const textBlock = (data.content || []).find((b: any) => b.type === "text");
-  return textBlock ? textBlock.text : "";
-}
-
-function extractJson(raw: string): any {
-  const cleaned = raw.replace(/```json\s*|```\s*/g, "").trim();
-  try {
-    return JSON.parse(cleaned);
-  } catch (e) {
-    const match = cleaned.match(/\{[\s\S]*\}/);
-    if (match) {
-      try {
-        return JSON.parse(match[0]);
-      } catch (e2) {
-        return null;
-      }
-    }
-    return null;
-  }
-}
-
 app.post("/api/ai/suggest-estimate", async (c) => {
   if (!c.env.ANTHROPIC_API_KEY) return c.json({ error: "AI機能が未設定です" }, 503);
   const body = await c.req.json().catch(() => null);
   const description = body?.description?.trim();
   if (!description) return c.json({ error: "description は必須です" }, 400);
   if (description.length > 2000) return c.json({ error: "1文字以上2000文字以内で入力してください" }, 400);
+
+  const clientIp = c.req.header("cf-connecting-ip") || "unknown";
+  if (await isRateLimited(c.env.DB, "ai_suggest", clientIp, 30)) {
+    return c.json({ error: "利用回数が上限に達しました。しばらくしてから再度お試しください" }, 429);
+  }
 
   const system = `あなたはAster Systems（Web/動画/アプリ/システム開発/デザイン制作会社）の見積もり相談員です。
 お客様の依頼内容の説明文から、以下のカテゴリ・プラン・オプション一覧の中から最も近いものを選び、
@@ -1102,6 +1634,11 @@ app.post("/api/ai/hearing-assist", async (c) => {
   if (!category || !answers) return c.json({ error: "category, answers は必須です" }, 400);
   // AI呼び出しのコスト乱用を防ぐため、送信できる回答量に上限を設ける。
   if (JSON.stringify(answers).length > 8000) return c.json({ error: "入力内容が大きすぎます" }, 400);
+
+  const clientIp = c.req.header("cf-connecting-ip") || "unknown";
+  if (await isRateLimited(c.env.DB, "ai_hearing_assist", clientIp, 30)) {
+    return c.json({ error: "利用回数が上限に達しました。しばらくしてから再度お試しください" }, 429);
+  }
 
   const system = `あなたはAster Systemsの制作ディレクターです。お客様が入力中のヒアリングシート（カテゴリ: ${category}）の
 回答内容（JSON）を見て、ヒアリング精度を上げるための追加確認事項を2〜4件、日本語の短い質問文の配列として提案してください。
@@ -1167,9 +1704,9 @@ app.get("/api/mypage", async (c) => {
 // ============================================================
 app.get("/", (c) => c.redirect("/portal.html", 302));
 app.get("/portal", (c) => c.redirect("/portal.html", 302));
-app.get("/estimate", (c) => c.redirect("/estimate.html", 302));
-app.get("/admin", (c) => c.redirect("/admin.html", 302));
-app.get("/mypage", (c) => c.redirect("/mypage.html", 302));
+app.get("/estimate", (c) => c.redirect("/customer/estimate.html", 302));
+app.get("/admin", (c) => c.redirect("/admin/admin.html", 302));
+app.get("/mypage", (c) => c.redirect("/customer/mypage.html", 302));
 
 app.get("*", async (c) => {
   const res = await c.env.ASSETS.fetch(c.req.raw);
@@ -1178,4 +1715,177 @@ app.get("*", async (c) => {
   return new Response(res.body, res);
 });
 
-export default app;
+// ============================================================
+// メール受信（フェーズ7）
+// ------------------------------------------------------------
+// Cloudflare Email Routingからの着信を受け取るハンドラ。
+// 前提として、受信用ドメインをCloudflareにオンボードし、ダッシュボード/
+// `wrangler email routing rules create` で本Workerへのルーティング規則を
+// 作成しておく必要がある（コード側の変更だけでは受信は有効化されない）。
+//
+// message.from / message.to はSMTPエンベロープの値（なりすまし困難）を
+// 信頼し、ヘッダーのFrom等は信頼しない。送信は既存のResend経由をそのまま
+// 流用し、Cloudflareのsend_email bindingは導入しない（送信経路を一本化する
+// ため）。
+// ============================================================
+const DEFAULT_SITE_ORIGIN = "https://studio.aster-system.com";
+
+function stripHtmlTags(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// 受信直後に送る一次受付メール（分類・見積もり内容には一切触れない、ごく短い確認メール）。
+async function sendInboundAcknowledgementEmail(env: Bindings, origin: string, caseRow: any): Promise<void> {
+  if (!env.RESEND_API_KEY || !caseRow.email || !EMAIL_PATTERN.test(caseRow.email)) return;
+  const fromAddr = env.MAIL_FROM || "quotes@example.com";
+  const emailSettings = await getEmailSettings(env.DB);
+  const customerName = caseRow.customer_name || "お客様";
+  const mypageUrl = `${origin}/customer/mypage.html`;
+
+  const html = `
+    <div style="font-family:sans-serif;line-height:1.7;color:#1b2333;">
+      <p>${escapeHtml(customerName)} 様</p>
+      <p>この度はAster Systemsへお問い合わせいただき、誠にありがとうございます。<br />
+      内容を確認のうえ、担当者より改めてご連絡させていただきます。</p>
+      ${buildMypageNoticeHtml(caseRow.id, mypageUrl)}
+      ${buildCustomNoticeHtml(emailSettings.custom_notice)}
+      ${buildSignatureHtml(emailSettings)}
+      <p style="margin-top:16px;color:#8a97a0;font-size:12px;">本メールは自動送信されています。心当たりのない場合は破棄してくださいませ。</p>
+    </div>
+  `;
+  const subject = "【Aster Systems】お問い合わせを受け付けました";
+  await sendEmailSafe(env.RESEND_API_KEY, fromAddr, [caseRow.email], subject, html, "受信メールへの自動返信に失敗しました:");
+  await logCaseEvent(env.DB, caseRow.id, "outbound_email", {
+    direction: "out",
+    subject,
+    summary: `お問い合わせ受付メールを${caseRow.email}へ自動送信`,
+    payload: { to: caseRow.email },
+  });
+}
+
+async function handleInboundEmail(message: ForwardableEmailMessage, env: Bindings): Promise<void> {
+  const envelopeFrom = message.from;
+
+  // 乱用防止：同一送信元からの受信処理回数を日次で制限する。
+  if (await isRateLimited(env.DB, "inbound_email", envelopeFrom, 10)) {
+    message.setReject("Too many messages from this sender today");
+    return;
+  }
+
+  let parsed;
+  try {
+    parsed = await PostalMime.parse(message.raw);
+  } catch (err) {
+    console.warn("受信メールのMIME解析に失敗しました:", err);
+    return;
+  }
+
+  const messageId = parsed.messageId || null;
+  if (messageId) {
+    const existing = await env.DB.prepare("SELECT case_id FROM inbound_messages WHERE message_id = ?").bind(messageId).first();
+    if (existing) {
+      console.warn("重複した受信メールをスキップしました:", messageId);
+      return;
+    }
+  }
+
+  const bodyText = (parsed.text || stripHtmlTags(parsed.html || "")).trim().slice(0, 4000);
+  if (!bodyText) {
+    console.warn("受信メールに本文が無いためスキップしました");
+    return;
+  }
+
+  const origin = env.SITE_ORIGIN || DEFAULT_SITE_ORIGIN;
+  const customerName = parsed.from?.name || envelopeFrom;
+
+  // まずカテゴリ分類を試み、その結果を使って案件を作成する
+  // （cases.categoryはNOT NULLのため、分類前に空で作成することはできない）。
+  let classification: Awaited<ReturnType<typeof classifyInquiry>> | null = null;
+  if (env.ANTHROPIC_API_KEY) {
+    try {
+      classification = await classifyInquiry(env.ANTHROPIC_API_KEY, bodyText);
+    } catch (err) {
+      console.warn("受信メールのカテゴリ分類に失敗しました:", err);
+    }
+  }
+
+  const category = classification?.category || "uncategorized";
+  const now = new Date().toISOString();
+  const caseId = newId();
+
+  await env.DB.prepare(
+    `INSERT INTO cases (id, category, status, customer_name, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
+  )
+    .bind(caseId, category, classification?.category ? "hearing" : "needs_info", customerName, envelopeFrom, now, now)
+    .run();
+
+  if (messageId) {
+    await env.DB.prepare("INSERT INTO inbound_messages (message_id, case_id) VALUES (?, ?)").bind(messageId, caseId).run();
+  }
+
+  await logCaseEvent(env.DB, caseId, "inbound_email", {
+    direction: "in",
+    subject: parsed.subject || undefined,
+    summary: `${envelopeFrom}からの問い合わせメールを受信`,
+    payload: { from: envelopeFrom, subject: parsed.subject, bodyPreview: bodyText.slice(0, 500), messageId },
+  });
+
+  if (classification) {
+    await logCaseEvent(env.DB, caseId, "ai_stage", {
+      summary: `受信メールを分類（カテゴリ:${classification.category ?? "不明"}、確信度:${classification.confidence}）`,
+      payload: classification,
+    });
+  }
+
+  await sendInboundAcknowledgementEmail(env, origin, { id: caseId, email: envelopeFrom, customer_name: customerName });
+
+  if (!classification?.category) {
+    // カテゴリを判定できなかった場合はここで終了し、案件一覧から人が手動対応する。
+    return;
+  }
+
+  if (!env.ANTHROPIC_API_KEY) return;
+
+  try {
+    const extraction = await extractHearingFields(env.ANTHROPIC_API_KEY, classification.category, bodyText);
+    await env.DB.prepare(
+      `INSERT INTO hearings (id, case_id, category, answers, created_at) VALUES (?, ?, ?, ?, ?)`
+    )
+      .bind(newId(), caseId, classification.category, JSON.stringify(extraction.answers), new Date().toISOString())
+      .run();
+    await logCaseEvent(env.DB, caseId, "ai_stage", {
+      summary: `受信メールからヒアリング項目を抽出（${extraction.coveredFieldIds.length}件、除外${extraction.droppedFieldIds.length}件）`,
+      payload: extraction,
+    });
+  } catch (err: any) {
+    console.warn("受信メールからのヒアリング項目抽出に失敗しました:", err);
+    await logCaseEvent(env.DB, caseId, "ai_stage", {
+      summary: `ヒアリング項目抽出に失敗しました（${err.message || err}）`,
+    });
+    return;
+  }
+
+  if (await isAutoPipelineEnabled(env.DB)) {
+    try {
+      await runAutoPipeline(env, origin, caseId);
+    } catch (err) {
+      console.warn("受信メール起点の自動パイプラインに失敗しました:", err);
+    }
+  }
+}
+
+export default {
+  fetch: app.fetch,
+  async email(message: ForwardableEmailMessage, env: Bindings, ctx: ExecutionContext) {
+    ctx.waitUntil(
+      handleInboundEmail(message, env).catch((err) => {
+        console.warn("受信メール処理に失敗しました:", err);
+      })
+    );
+  },
+} satisfies ExportedHandler<Bindings>;

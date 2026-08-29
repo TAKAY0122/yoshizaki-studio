@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light" />
+<link rel="icon" type="image/png" href="/img/aster-icon.png" />
+<meta name="robots" content="noindex" />
+<title>仕様書（下書き） | Aster Systems</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/proposal.css" />
+</head>
+<body data-doc-type="spec" data-doc-title="仕様書">
+
+  <div class="no-print toolbar">
+    <div class="wrap toolbar-inner">
+      <a href="/portal.html" class="brand-link">
+        <img src="/img/aster-icon.png" alt="" class="brand-icon" />
+        <span class="brand-word">Aster<em>Systems</em></span>
+      </a>
+      <div class="toolbar-actions">
+        <button type="button" id="generate-btn">下書きを生成する</button>
+        <button type="button" id="print-btn">印刷 / PDFとして保存</button>
+      </div>
+    </div>
+  </div>
+
+  <main class="wrap sheet" id="sheet" hidden>
+    <header class="doc-head">
+      <div>
+        <p class="doc-eyebrow">SPEC DRAFT（社内専用・非公開）</p>
+        <h1>仕様書（下書き）</h1>
+      </div>
+      <div class="doc-meta">
+        <div>受付番号：<span id="case-id"></span></div>
+        <div>生成日時：<span id="issue-date"></span></div>
+        <div>版：<span id="doc-version"></span></div>
+      </div>
+    </header>
+
+    <section class="block" id="sections-block">
+      <div id="sections-content"></div>
+    </section>
+
+    <p class="doc-footer-note">本書はヒアリング回答・選定プラン・確定金額をもとに自動生成した下書きです。社内検討用の資料であり、お客様には送付していません。内容は必ず見直してください。</p>
+  </main>
+
+  <div class="wrap" id="empty-box" hidden>
+    <div style="text-align:center;margin-top:60px;">
+      <p style="color:var(--ink-soft);">この案件にはまだ仕様書が生成されていません。</p>
+    </div>
+  </div>
+
+  <div class="wrap" id="error-box" hidden>
+    <p id="error-message"></p>
+  </div>
+
+  <script src="/js/document-viewer.js"></script>
+</body>
+</html>

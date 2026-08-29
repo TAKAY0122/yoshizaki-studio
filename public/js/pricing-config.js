@@ -20,7 +20,7 @@ const CATEGORIES = [
     label: "Webサイト制作",
     tag: "WEB",
     badge: "var(--gold-soft)",
-    hearingUrl: "/hearing.html",
+    hearingUrl: "/hearing/hearing.html",
     dailyRate: 45000,
     plans: [
       item("lp", "LP（ランディングページ）", 45000, 3),
@@ -53,7 +53,7 @@ const CATEGORIES = [
     label: "動画編集・映像制作",
     tag: "VIDEO",
     badge: "var(--gold-soft)",
-    hearingUrl: "/hearing_video.html",
+    hearingUrl: "/hearing/hearing_video.html",
     dailyRate: 40000,
     plans: [
       item("youtube", "YouTube動画編集（〜15分・1本）", 40000, 0.25),
@@ -81,7 +81,7 @@ const CATEGORIES = [
     label: "アプリ開発",
     tag: "APP",
     badge: "var(--gold-soft)",
-    hearingUrl: "/hearing_app.html",
+    hearingUrl: "/hearing/hearing_app.html",
     dailyRate: 65000,
     plans: [
       item("pwa", "PWA・簡易Webアプリ", 65000, 7),
@@ -110,7 +110,7 @@ const CATEGORIES = [
     label: "グラフィック・デザイン",
     tag: "DESIGN",
     badge: "var(--gold-soft)",
-    hearingUrl: "/hearing_design.html",
+    hearingUrl: "/hearing/hearing_design.html",
     dailyRate: 45000,
     plans: [
       item("logo-simple", "ロゴデザイン（シンプル）", 45000, 0.8),
@@ -139,7 +139,7 @@ const CATEGORIES = [
     label: "システム開発",
     tag: "SYSTEM",
     badge: "var(--gold-soft)",
-    hearingUrl: "/hearing_system.html",
+    hearingUrl: "/hearing/hearing_system.html",
     dailyRate: 70000,
     plans: [
       item("small", "業務システム（小規模）", 70000, 10.3),
