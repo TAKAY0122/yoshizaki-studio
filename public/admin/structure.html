@@ -43,6 +43,7 @@
         <button type="button" class="tab-btn" data-tab="api">APIエンドポイント</button>
         <button type="button" class="tab-btn" data-tab="db">DBテーブル</button>
         <button type="button" class="tab-btn" data-tab="flow">業務フロー</button>
+        <button type="button" class="tab-btn" data-tab="diagrams">図解</button>
       </div>
 
       <div class="tab-panel" data-panel="pages">
@@ -74,6 +75,609 @@
 
       <div class="tab-panel" data-panel="flow" hidden>
         <ol class="flow-list" id="flow-list"></ol>
+      </div>
+
+      <div class="tab-panel" data-panel="diagrams" hidden>
+        <p class="tab-help">実装（<code>src/index.ts</code> 等）を変更した際は、この図解も手動で更新してください（自動生成ではありません）。</p>
+
+        <!-- 矢印マーカー定義（全図で共通利用） -->
+        <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+          <defs>
+            <marker id="arrow-navy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" style="fill:var(--navy-soft)"></path>
+            </marker>
+            <marker id="arrow-gold" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" style="fill:var(--gold-deep)"></path>
+            </marker>
+            <marker id="arrow-faint" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" style="fill:var(--ink-faint)"></path>
+            </marker>
+          </defs>
+        </svg>
+
+        <!-- ① アーキテクチャ図 -->
+        <div class="diagram-block">
+          <h3 class="diagram-title">① アーキテクチャ図（システム構成）</h3>
+          <p class="diagram-desc">クライアント（ブラウザ）・Cloudflare Workers・外部サービスの関係を示す。</p>
+          <div class="diagram-svg-wrap">
+            <svg viewBox="0 0 900 450" role="img" aria-label="システム構成図">
+              <rect x="20" y="20" width="210" height="58" rx="10" class="dg-rect"></rect>
+              <text x="30" y="40" class="dg-node-title">ポータル・顧客ページ</text>
+              <text x="30" y="56" class="dg-node-mono">portal.html / customer/*.html</text>
+              <text x="30" y="70" class="dg-node-sub">（公開）</text>
+
+              <rect x="20" y="98" width="210" height="58" rx="10" class="dg-rect"></rect>
+              <text x="30" y="118" class="dg-node-title">ヒアリングページ</text>
+              <text x="30" y="134" class="dg-node-mono">hearing/*.html（5種）</text>
+              <text x="30" y="148" class="dg-node-sub">（公開）</text>
+
+              <rect x="20" y="176" width="210" height="58" rx="10" class="dg-rect"></rect>
+              <text x="30" y="196" class="dg-node-title">管理画面</text>
+              <text x="30" y="212" class="dg-node-mono">admin/*.html</text>
+              <text x="30" y="226" class="dg-node-sub">（要ログイン・隠しアクセス）</text>
+
+              <rect x="20" y="248" width="210" height="46" rx="10" class="dg-rect-ext"></rect>
+              <text x="30" y="266" class="dg-label-strong">静的配信</text>
+              <text x="30" y="282" class="dg-node-sub">[assets] binding が public/ を配信</text>
+
+              <rect x="320" y="20" width="250" height="224" rx="10" class="dg-rect"></rect>
+              <text x="330" y="42" class="dg-node-title">Cloudflare Workers（Hono）</text>
+              <text x="330" y="60" class="dg-node-mono">src/index.ts</text>
+              <text x="330" y="82" class="dg-node-sub">・認証／レート制限／全ルーティング</text>
+              <text x="330" y="100" class="dg-node-sub">・見積もり・ヒアリング受付</text>
+              <text x="330" y="118" class="dg-node-sub">・正式見積書の送付</text>
+              <text x="330" y="136" class="dg-node-sub">・受信メール処理（email()）</text>
+              <text x="330" y="154" class="dg-node-sub">・監査ログ記録（case_events）</text>
+
+              <rect x="320" y="264" width="250" height="64" rx="10" class="dg-rect-ai"></rect>
+              <text x="330" y="284" class="dg-node-title">AI自動パイプライン モジュール</text>
+              <text x="330" y="302" class="dg-node-mono">ai-pipeline.ts ・ claude-client.ts</text>
+              <text x="330" y="316" class="dg-node-mono">hearing-fields.ts ・ pricing-catalog.ts</text>
+
+              <rect x="320" y="340" width="250" height="42" rx="10" class="dg-rect-ext"></rect>
+              <text x="330" y="356" class="dg-label-strong">既定OFF</text>
+              <text x="330" y="372" class="dg-node-sub">auto_pipeline_config で明示的にONにするまで無効</text>
+
+              <rect x="660" y="20" width="210" height="58" rx="10" class="dg-rect-ext"></rect>
+              <text x="670" y="38" class="dg-node-title">Cloudflare Email Routing</text>
+              <text x="670" y="53" class="dg-node-sub">受信（要ダッシュボード設定）</text>
+              <text x="670" y="67" class="dg-node-sub">MX設定・ルーティング規則</text>
+
+              <rect x="660" y="98" width="210" height="66" rx="10" class="dg-rect-store"></rect>
+              <text x="670" y="116" class="dg-node-title">D1: ty-mitumori-db</text>
+              <text x="670" y="132" class="dg-node-mono">binding: DB</text>
+              <text x="670" y="148" class="dg-node-sub">16テーブル（DBタブ参照）</text>
+
+              <rect x="660" y="184" width="210" height="58" rx="10" class="dg-rect"></rect>
+              <text x="670" y="202" class="dg-node-title">Resend</text>
+              <text x="670" y="217" class="dg-node-mono">RESEND_API_KEY</text>
+              <text x="670" y="231" class="dg-node-sub">見積書・確認メール送信</text>
+
+              <rect x="660" y="262" width="210" height="58" rx="10" class="dg-rect-ai"></rect>
+              <text x="670" y="280" class="dg-node-title">Anthropic API</text>
+              <text x="670" y="295" class="dg-node-mono">ANTHROPIC_API_KEY</text>
+              <text x="670" y="309" class="dg-node-sub">分類・抽出・プラン/金額判断</text>
+
+              <path d="M230,49 C275,49 275,60 320,60" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+              <path d="M230,127 C275,127 275,132 320,132" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+              <path d="M230,205 C275,205 275,204 320,204" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+
+              <path d="M660,49 L570,49" class="dg-arrow-faint" marker-end="url(#arrow-faint)"></path>
+              <text x="575" y="44" class="dg-label">受信（message.from/to）</text>
+
+              <path d="M570,131 L660,131" class="dg-arrow" marker-start="url(#arrow-navy)" marker-end="url(#arrow-navy)"></path>
+              <text x="575" y="124" class="dg-label">cases/estimates/hearings 等</text>
+
+              <path d="M570,213 L660,213" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+              <text x="575" y="206" class="dg-label">メール送信</text>
+
+              <path d="M570,296 C610,296 610,291 660,291" class="dg-arrow-ai" marker-end="url(#arrow-gold)"></path>
+              <text x="585" y="285" class="dg-label-ai">分類・抽出・判断</text>
+
+              <path d="M445,244 L445,264" class="dg-arrow-ai" marker-end="url(#arrow-gold)"></path>
+              <text x="452" y="257" class="dg-label-ai">AI呼び出し</text>
+
+              <rect x="20" y="410" width="16" height="16" class="dg-rect"></rect>
+              <text x="42" y="422" class="dg-label">通常コンポーネント</text>
+              <rect x="260" y="410" width="16" height="16" class="dg-rect-ai"></rect>
+              <text x="282" y="422" class="dg-label">AI・自動化関連</text>
+              <rect x="470" y="410" width="16" height="16" class="dg-rect-ext"></rect>
+              <text x="492" y="422" class="dg-label">外部サービス／要手動設定</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- ② ワークフロー図 -->
+        <div class="diagram-block">
+          <h3 class="diagram-title">② ワークフロー図（業務フロー）</h3>
+          <p class="diagram-desc">見積もり受付から成約／失注までの分岐（全自動AI対応ON/OFF、AIが金額判断できない場合を含む）。</p>
+          <div class="diagram-svg-wrap">
+            <svg viewBox="0 0 900 970" role="img" aria-label="業務フロー図">
+              <rect x="140" y="20" width="200" height="66" rx="12" class="dg-rect"></rect>
+              <text x="150" y="42" class="dg-node-title">起点：サイト操作</text>
+              <text x="150" y="58" class="dg-node-sub">見積もり送信 → ヒアリング送信</text>
+              <text x="150" y="72" class="dg-node-sub">estimate_code をヒアリングへ引継</text>
+
+              <rect x="560" y="20" width="200" height="66" rx="12" class="dg-rect"></rect>
+              <text x="570" y="42" class="dg-node-title">起点：メール受信</text>
+              <text x="570" y="58" class="dg-node-sub">email()（Email Routing経由）</text>
+              <text x="570" y="72" class="dg-node-sub">分類失敗時は直接 needs_info へ</text>
+
+              <path d="M240,86 L240,98 L400,98 L400,110" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+              <path d="M660,86 L660,98 L500,98 L500,110" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+
+              <rect x="340" y="110" width="220" height="54" rx="12" class="dg-rect"></rect>
+              <text x="350" y="132" class="dg-node-title">ヒアリング完了</text>
+              <text x="350" y="150" class="dg-node-sub">hearings テーブルに保存</text>
+
+              <path d="M450,164 L450,195" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+
+              <polygon points="450,195 560,245 450,295 340,245" class="dg-diamond-plain"></polygon>
+              <text x="450" y="240" text-anchor="middle" class="dg-label-strong">全自動AI対応</text>
+              <text x="450" y="256" text-anchor="middle" class="dg-node-sub">（auto_pipeline_config）</text>
+
+              <path d="M340,245 L300,245" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+              <text x="245" y="238" class="dg-label">OFF（既定）</text>
+              <path d="M560,245 L590,245" class="dg-arrow-ai" marker-end="url(#arrow-gold)"></path>
+              <text x="565" y="238" class="dg-label-ai">ON</text>
+
+              <rect x="90" y="225" width="210" height="54" rx="10" class="dg-rect"></rect>
+              <text x="100" y="247" class="dg-node-title">管理者が手動確認</text>
+              <text x="100" y="265" class="dg-node-sub">admin/proposal.html（要ログイン）</text>
+
+              <path d="M195,279 L195,305" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+
+              <rect x="90" y="305" width="210" height="54" rx="10" class="dg-rect"></rect>
+              <text x="100" y="327" class="dg-node-title">正式見積書を送付</text>
+              <text x="100" y="345" class="dg-node-sub">send-formal-quote（管理者操作）</text>
+
+              <rect x="590" y="225" width="220" height="54" rx="10" class="dg-rect-ai"></rect>
+              <text x="600" y="247" class="dg-node-title">AIがプラン/金額判断</text>
+              <text x="600" y="265" class="dg-node-mono">selectPlanAndAddons → aiTotal</text>
+
+              <path d="M700,279 L700,295" class="dg-arrow-ai" marker-end="url(#arrow-gold)"></path>
+
+              <polygon points="700,295 800,340 700,385 600,340" class="dg-diamond"></polygon>
+              <text x="700" y="335" text-anchor="middle" class="dg-label-ai">金額を判断</text>
+              <text x="700" y="349" text-anchor="middle" class="dg-node-sub">できた?（aiTotal）</text>
+
+              <path d="M600,340 L540,340 L540,452 L590,452" class="dg-arrow-faint" marker-end="url(#arrow-faint)"></path>
+              <text x="440" y="393" class="dg-label">いいえ（未確定）</text>
+
+              <path d="M700,385 L700,500" class="dg-arrow-ai" marker-end="url(#arrow-gold)"></path>
+              <text x="712" y="446" class="dg-label-ai">はい（確定）</text>
+
+              <rect x="590" y="420" width="220" height="64" rx="10" class="dg-rect-ext"></rect>
+              <text x="600" y="440" class="dg-node-title">needs_info</text>
+              <text x="600" y="456" class="dg-node-sub">確認メール送信のみ</text>
+              <text x="600" y="470" class="dg-node-sub">以降は案件一覧から人が手動対応</text>
+
+              <rect x="590" y="500" width="220" height="54" rx="10" class="dg-rect-ai"></rect>
+              <text x="600" y="522" class="dg-node-title">資料を自動生成</text>
+              <text x="600" y="540" class="dg-node-sub">要件定義書・仕様書（社内専用）</text>
+
+              <path d="M700,554 L700,580" class="dg-arrow-ai" marker-end="url(#arrow-gold)"></path>
+
+              <rect x="590" y="580" width="220" height="54" rx="10" class="dg-rect-ai"></rect>
+              <text x="600" y="602" class="dg-node-title">正式見積書を自動送信</text>
+              <text x="600" y="620" class="dg-node-mono">issueFormalQuote（triggeredBy: auto）</text>
+
+              <path d="M195,359 L195,707 L340,707" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+              <path d="M700,634 L700,707 L560,707" class="dg-arrow-ai" marker-end="url(#arrow-gold)"></path>
+
+              <rect x="340" y="680" width="220" height="54" rx="12" class="dg-rect"></rect>
+              <text x="350" y="702" class="dg-node-title">quoted</text>
+              <text x="350" y="720" class="dg-node-sub">cases.status = 'quoted'</text>
+
+              <path d="M450,734 L450,750" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+
+              <polygon points="450,750 540,790 450,830 360,790" class="dg-diamond-plain"></polygon>
+              <text x="450" y="794" text-anchor="middle" class="dg-label-strong">成約？</text>
+
+              <path d="M360,790 L280,790 L280,880" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+              <text x="230" y="835" class="dg-label">Yes</text>
+              <path d="M540,790 L630,790 L630,880" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+              <text x="600" y="835" class="dg-label">No</text>
+
+              <rect x="200" y="880" width="160" height="48" rx="10" class="dg-rect"></rect>
+              <text x="210" y="902" class="dg-node-title">won</text>
+              <text x="210" y="918" class="dg-node-sub">受注</text>
+
+              <rect x="550" y="880" width="160" height="48" rx="10" class="dg-rect"></rect>
+              <text x="560" y="902" class="dg-node-title">lost</text>
+              <text x="560" y="918" class="dg-node-sub">失注</text>
+
+              <text x="450" y="945" text-anchor="middle" class="dg-label">※すべての遷移は case_logs／case_events に記録されます</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- ③ シーケンス図 -->
+        <div class="diagram-block">
+          <h3 class="diagram-title">③-a シーケンス図（手動フロー：見積〜正式見積書送付）</h3>
+          <p class="diagram-desc">実線＝リクエスト／同期呼び出し、破線＝非同期処理（waitUntil）またはレスポンス。</p>
+          <div class="diagram-svg-wrap">
+            <svg viewBox="0 0 900 650" role="img" aria-label="シーケンス図（手動フロー）">
+              <rect x="20" y="20" width="140" height="36" rx="8" class="dg-rect"></rect>
+              <text x="90" y="36" text-anchor="middle" class="dg-node-title">顧客（ブラウザ）</text>
+              <text x="90" y="50" text-anchor="middle" class="dg-node-mono">estimate.js / hearing.js</text>
+              <line x1="90" y1="56" x2="90" y2="610" class="dg-lifeline"></line>
+
+              <rect x="220" y="20" width="140" height="36" rx="8" class="dg-rect"></rect>
+              <text x="290" y="36" text-anchor="middle" class="dg-node-title">Worker</text>
+              <text x="290" y="50" text-anchor="middle" class="dg-node-mono">src/index.ts</text>
+              <line x1="290" y1="56" x2="290" y2="610" class="dg-lifeline"></line>
+
+              <rect x="410" y="20" width="140" height="36" rx="8" class="dg-rect-store"></rect>
+              <text x="480" y="36" text-anchor="middle" class="dg-node-title">D1</text>
+              <text x="480" y="50" text-anchor="middle" class="dg-node-mono">ty-mitumori-db</text>
+              <line x1="480" y1="56" x2="480" y2="610" class="dg-lifeline"></line>
+
+              <rect x="580" y="20" width="140" height="36" rx="8" class="dg-rect"></rect>
+              <text x="650" y="36" text-anchor="middle" class="dg-node-title">Resend</text>
+              <text x="650" y="50" text-anchor="middle" class="dg-node-mono">メール送信</text>
+              <line x1="650" y1="56" x2="650" y2="610" class="dg-lifeline"></line>
+
+              <rect x="760" y="20" width="140" height="36" rx="8" class="dg-rect"></rect>
+              <text x="830" y="36" text-anchor="middle" class="dg-node-title">管理者</text>
+              <text x="830" y="50" text-anchor="middle" class="dg-node-mono">admin/proposal.html</text>
+              <line x1="830" y1="56" x2="830" y2="610" class="dg-lifeline"></line>
+
+              <line x1="90" y1="90" x2="290" y2="90" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="190" y="84" text-anchor="middle" class="dg-label">① POST /api/estimates/send</text>
+
+              <line x1="290" y1="122" x2="480" y2="122" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="385" y="116" text-anchor="middle" class="dg-label">② INSERT cases(new)/estimates</text>
+
+              <line x1="290" y1="154" x2="650" y2="154" class="dg-arrow-dashed" marker-end="url(#arrow-navy)"></line>
+              <text x="470" y="148" text-anchor="middle" class="dg-label">③ 確認メール送信（非同期）</text>
+
+              <line x1="290" y1="186" x2="90" y2="186" class="dg-arrow-dashed" marker-end="url(#arrow-navy)"></line>
+              <text x="190" y="180" text-anchor="middle" class="dg-label">④ caseId / refCode 返却</text>
+
+              <line x1="40" y1="210" x2="860" y2="210" class="dg-divider"></line>
+              <text x="450" y="206" text-anchor="middle" class="dg-label-strong">ヒアリング送信</text>
+
+              <line x1="90" y1="228" x2="290" y2="228" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="190" y="222" text-anchor="middle" class="dg-label">⑤ POST /api/hearings</text>
+
+              <line x1="290" y1="260" x2="480" y2="260" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="385" y="254" text-anchor="middle" class="dg-label">⑥ UPDATE cases(hearing)/INSERT hearings</text>
+
+              <line x1="290" y1="292" x2="650" y2="292" class="dg-arrow-dashed" marker-end="url(#arrow-navy)"></line>
+              <text x="470" y="286" text-anchor="middle" class="dg-label">⑦ 確認メール送信（非同期）</text>
+
+              <line x1="290" y1="324" x2="90" y2="324" class="dg-arrow-dashed" marker-end="url(#arrow-navy)"></line>
+              <text x="190" y="318" text-anchor="middle" class="dg-label">⑧ ok:true</text>
+
+              <line x1="40" y1="348" x2="860" y2="348" class="dg-divider"></line>
+              <text x="450" y="344" text-anchor="middle" class="dg-label-strong">管理者による確認・正式見積書送付</text>
+
+              <line x1="830" y1="366" x2="290" y2="366" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="560" y="360" text-anchor="middle" class="dg-label">⑨ GET /api/admin/cases/:id</text>
+
+              <line x1="290" y1="398" x2="480" y2="398" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="385" y="392" text-anchor="middle" class="dg-label">⑩ SELECT cases/hearings</text>
+
+              <line x1="290" y1="430" x2="830" y2="430" class="dg-arrow-dashed" marker-end="url(#arrow-navy)"></line>
+              <text x="560" y="424" text-anchor="middle" class="dg-label">⑪ 案件データ返却（proposal.html表示）</text>
+
+              <line x1="830" y1="462" x2="290" y2="462" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="560" y="456" text-anchor="middle" class="dg-label">⑫ POST send-formal-quote</text>
+
+              <line x1="290" y1="494" x2="480" y2="494" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="385" y="488" text-anchor="middle" class="dg-label">⑬ UPDATE status=quoted／INSERT case_logs</text>
+
+              <line x1="290" y1="526" x2="650" y2="526" class="dg-arrow-dashed" marker-end="url(#arrow-navy)"></line>
+              <text x="470" y="520" text-anchor="middle" class="dg-label">⑭ 正式見積書＋社内控え送信</text>
+
+              <line x1="290" y1="558" x2="480" y2="558" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="385" y="552" text-anchor="middle" class="dg-label">⑮ INSERT case_events(outbound_email)</text>
+
+              <line x1="290" y1="590" x2="830" y2="590" class="dg-arrow-dashed" marker-end="url(#arrow-navy)"></line>
+              <text x="560" y="584" text-anchor="middle" class="dg-label">⑯ 送信完了レスポンス</text>
+            </svg>
+          </div>
+        </div>
+
+        <div class="diagram-block">
+          <h3 class="diagram-title">③-b シーケンス図（メール受信・全自動パイプライン）</h3>
+          <p class="diagram-desc">「全自動AI対応」ONの場合の一連の流れ。破線枠（alt）はAIが金額を判断できた場合／できなかった場合の分岐。</p>
+          <div class="diagram-svg-wrap">
+            <svg viewBox="0 0 1000 800" role="img" aria-label="シーケンス図（メール受信・全自動パイプライン）">
+              <rect x="20" y="20" width="140" height="36" rx="8" class="dg-rect"></rect>
+              <text x="90" y="36" text-anchor="middle" class="dg-node-title">送信者</text>
+              <text x="90" y="50" text-anchor="middle" class="dg-node-mono">外部メール</text>
+              <line x1="90" y1="56" x2="90" y2="744" class="dg-lifeline"></line>
+
+              <rect x="180" y="20" width="140" height="36" rx="8" class="dg-rect-ext"></rect>
+              <text x="250" y="36" text-anchor="middle" class="dg-node-title">Email Routing</text>
+              <text x="250" y="50" text-anchor="middle" class="dg-node-mono">Cloudflare</text>
+              <line x1="250" y1="56" x2="250" y2="744" class="dg-lifeline"></line>
+
+              <rect x="350" y="20" width="140" height="36" rx="8" class="dg-rect"></rect>
+              <text x="420" y="36" text-anchor="middle" class="dg-node-title">Worker</text>
+              <text x="420" y="50" text-anchor="middle" class="dg-node-mono">email()ハンドラ</text>
+              <line x1="420" y1="56" x2="420" y2="744" class="dg-lifeline"></line>
+
+              <rect x="530" y="20" width="140" height="36" rx="8" class="dg-rect-ai"></rect>
+              <text x="600" y="36" text-anchor="middle" class="dg-node-title">Anthropic API</text>
+              <text x="600" y="50" text-anchor="middle" class="dg-node-mono">分類/抽出/判断</text>
+              <line x1="600" y1="56" x2="600" y2="744" class="dg-lifeline"></line>
+
+              <rect x="690" y="20" width="140" height="36" rx="8" class="dg-rect-store"></rect>
+              <text x="760" y="36" text-anchor="middle" class="dg-node-title">D1</text>
+              <text x="760" y="50" text-anchor="middle" class="dg-node-mono">ty-mitumori-db</text>
+              <line x1="760" y1="56" x2="760" y2="744" class="dg-lifeline"></line>
+
+              <rect x="850" y="20" width="140" height="36" rx="8" class="dg-rect"></rect>
+              <text x="920" y="36" text-anchor="middle" class="dg-node-title">Resend</text>
+              <text x="920" y="50" text-anchor="middle" class="dg-node-mono">メール送信</text>
+              <line x1="920" y1="56" x2="920" y2="744" class="dg-lifeline"></line>
+
+              <line x1="90" y1="90" x2="250" y2="90" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="170" y="84" text-anchor="middle" class="dg-label">① 問い合わせメール送信</text>
+
+              <line x1="250" y1="120" x2="420" y2="120" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="335" y="114" text-anchor="middle" class="dg-label">② email(message) 呼び出し</text>
+
+              <rect x="310" y="133" width="220" height="34" rx="6" class="dg-note-rect"></rect>
+              <text x="420" y="146" text-anchor="middle" class="dg-node-sub">レート制限チェック・MIME解析</text>
+              <text x="420" y="160" text-anchor="middle" class="dg-node-sub">重複チェック（inbound_messages）</text>
+
+              <line x1="420" y1="183" x2="600" y2="183" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="510" y="177" text-anchor="middle" class="dg-label">③ classifyInquiry(本文)</text>
+
+              <line x1="600" y1="213" x2="420" y2="213" class="dg-arrow-dashed" marker-end="url(#arrow-navy)"></line>
+              <text x="510" y="207" text-anchor="middle" class="dg-label">④ カテゴリ・確信度</text>
+
+              <line x1="420" y1="243" x2="760" y2="243" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="590" y="237" text-anchor="middle" class="dg-label">⑤ INSERT cases・case_events</text>
+
+              <line x1="420" y1="273" x2="920" y2="273" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="670" y="267" text-anchor="middle" class="dg-label">⑥ 一次受付メール自動送信</text>
+
+              <line x1="420" y1="303" x2="600" y2="303" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="510" y="297" text-anchor="middle" class="dg-label">⑦ extractHearingFields（ホワイトリスト照合）</text>
+
+              <line x1="600" y1="333" x2="420" y2="333" class="dg-arrow-dashed" marker-end="url(#arrow-navy)"></line>
+              <text x="510" y="327" text-anchor="middle" class="dg-label">⑧ ヒアリング項目（除外分あり）</text>
+
+              <line x1="420" y1="363" x2="760" y2="363" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="590" y="357" text-anchor="middle" class="dg-label">⑨ INSERT hearings</text>
+
+              <rect x="310" y="383" width="220" height="20" rx="6" class="dg-note-rect"></rect>
+              <text x="420" y="397" text-anchor="middle" class="dg-node-sub">OFF：ここで終了（人が手動対応）</text>
+
+              <rect x="355" y="415" width="615" height="320" class="dg-frame-rect"></rect>
+              <rect x="355" y="415" width="60" height="18" class="dg-rect-store"></rect>
+              <text x="362" y="428" class="dg-label-strong">alt</text>
+              <text x="500" y="428" text-anchor="middle" class="dg-label-ai">全自動AI対応 ON の場合</text>
+
+              <line x1="420" y1="452" x2="600" y2="452" class="dg-arrow-ai" marker-end="url(#arrow-gold)"></line>
+              <text x="510" y="446" text-anchor="middle" class="dg-label-ai">⑩ selectPlanAndAddons(カテゴリ,回答)</text>
+
+              <line x1="600" y1="482" x2="420" y2="482" class="dg-arrow-ai" marker-end="url(#arrow-gold)"></line>
+              <text x="510" y="476" text-anchor="middle" class="dg-label-ai">⑪ planId／addonIds／aiTotal</text>
+
+              <line x1="365" y1="498" x2="960" y2="498" class="dg-divider" stroke-dasharray="4 3"></line>
+              <text x="660" y="494" text-anchor="middle" class="dg-label-ai">［aiTotalが確定した場合］</text>
+
+              <line x1="420" y1="516" x2="760" y2="516" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="590" y="510" text-anchor="middle" class="dg-label">⑫ INSERT estimates／UPDATE cases</text>
+
+              <line x1="420" y1="546" x2="600" y2="546" class="dg-arrow-ai" marker-end="url(#arrow-gold)"></line>
+              <text x="510" y="540" text-anchor="middle" class="dg-label-ai">⑬ 資料生成（要件定義書・仕様書）</text>
+
+              <line x1="420" y1="576" x2="760" y2="576" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="590" y="570" text-anchor="middle" class="dg-label">⑭ INSERT documents</text>
+
+              <line x1="420" y1="606" x2="920" y2="606" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="670" y="600" text-anchor="middle" class="dg-label">⑮ 正式見積書メール自動送信</text>
+
+              <line x1="420" y1="636" x2="760" y2="636" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="590" y="630" text-anchor="middle" class="dg-label">⑯ UPDATE status=quoted／case_events</text>
+
+              <line x1="365" y1="656" x2="960" y2="656" class="dg-divider" stroke-dasharray="4 3"></line>
+              <text x="660" y="652" text-anchor="middle" class="dg-label-ai">［確定できなかった場合］</text>
+
+              <line x1="420" y1="676" x2="920" y2="676" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="670" y="670" text-anchor="middle" class="dg-label">⑰ 確認メールのみ送信（sendClarificationEmail）</text>
+
+              <line x1="420" y1="706" x2="760" y2="706" class="dg-arrow" marker-end="url(#arrow-navy)"></line>
+              <text x="590" y="700" text-anchor="middle" class="dg-label">⑱ UPDATE status=needs_info／case_events</text>
+
+              <text x="500" y="770" text-anchor="middle" class="dg-label">※すべての送受信・AI判定は case_events に記録され、admin/case-timeline.html で確認できます</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- ④ データフロー図 -->
+        <div class="diagram-block">
+          <h3 class="diagram-title">④ データフロー図</h3>
+          <p class="diagram-desc">静的な設定・ホワイトリストと、処理、D1テーブルの間でデータがどう流れるか。</p>
+          <div class="diagram-svg-wrap">
+            <svg viewBox="0 0 900 570" role="img" aria-label="データフロー図">
+              <rect x="20" y="20" width="190" height="50" rx="8" class="dg-rect"></rect>
+              <text x="30" y="40" class="dg-node-title">pricing-config.js</text>
+              <text x="30" y="56" class="dg-node-sub">プラン/単価（ブラウザ正本）</text>
+
+              <rect x="20" y="90" width="190" height="50" rx="8" class="dg-rect"></rect>
+              <text x="30" y="110" class="dg-node-title">pricing-catalog.ts</text>
+              <text x="30" y="126" class="dg-node-sub">サーバー用（AI参考価格）</text>
+
+              <rect x="20" y="160" width="190" height="50" rx="8" class="dg-rect"></rect>
+              <text x="30" y="180" class="dg-node-title">hearing-fields.ts</text>
+              <text x="30" y="196" class="dg-node-sub">ヒアリング項目ホワイトリスト</text>
+
+              <rect x="280" y="20" width="220" height="56" rx="8" class="dg-rect"></rect>
+              <text x="290" y="42" class="dg-node-title">computeTotalPure()</text>
+              <text x="290" y="58" class="dg-node-mono">pricing-calc.js（共有ロジック）</text>
+
+              <rect x="280" y="100" width="220" height="56" rx="8" class="dg-rect"></rect>
+              <text x="290" y="122" class="dg-node-title">estimate.js（ブラウザ）</text>
+              <text x="290" y="138" class="dg-node-sub">見積コード生成・送信</text>
+
+              <rect x="280" y="180" width="220" height="56" rx="8" class="dg-rect"></rect>
+              <text x="290" y="202" class="dg-node-title">hearing.js（ブラウザ）</text>
+              <text x="290" y="218" class="dg-node-sub">回答送信</text>
+
+              <rect x="280" y="270" width="220" height="70" rx="8" class="dg-rect-ai"></rect>
+              <text x="290" y="292" class="dg-node-title">ai-pipeline.ts</text>
+              <text x="290" y="308" class="dg-node-mono">classify/extract/selectPlanAndAddons</text>
+              <text x="290" y="322" class="dg-node-sub">（金額はAIが直接判断）</text>
+
+              <rect x="280" y="364" width="220" height="56" rx="8" class="dg-rect"></rect>
+              <text x="290" y="386" class="dg-node-title">admin dashboard.js</text>
+              <text x="290" y="402" class="dg-node-sub">複数APIを集計表示（書込みなし）</text>
+
+              <rect x="560" y="20" width="210" height="40" rx="6" class="dg-rect-store"></rect>
+              <text x="570" y="45" class="dg-node-title">cases</text>
+
+              <rect x="560" y="68" width="210" height="40" rx="6" class="dg-rect-store"></rect>
+              <text x="570" y="93" class="dg-node-title">estimates</text>
+
+              <rect x="560" y="116" width="210" height="40" rx="6" class="dg-rect-store"></rect>
+              <text x="570" y="141" class="dg-node-title">hearings</text>
+
+              <rect x="560" y="164" width="210" height="60" rx="6" class="dg-rect-store"></rect>
+              <text x="570" y="182" class="dg-node-title">pricing_overrides ほか</text>
+              <text x="570" y="196" class="dg-node-mono">bundles / delivery_options</text>
+              <text x="570" y="210" class="dg-node-mono">/ campaigns</text>
+
+              <rect x="560" y="232" width="210" height="40" rx="6" class="dg-rect-store"></rect>
+              <text x="570" y="257" class="dg-node-title">case_events</text>
+
+              <rect x="560" y="280" width="210" height="40" rx="6" class="dg-rect-store"></rect>
+              <text x="570" y="305" class="dg-node-title">documents</text>
+
+              <rect x="560" y="328" width="210" height="40" rx="6" class="dg-rect-store"></rect>
+              <text x="570" y="353" class="dg-node-title">email_settings</text>
+
+              <rect x="280" y="460" width="220" height="48" rx="8" class="dg-rect-ai"></rect>
+              <text x="290" y="482" class="dg-node-title">Anthropic API</text>
+              <text x="290" y="498" class="dg-node-sub">分類・抽出・プラン/金額判断</text>
+
+              <rect x="560" y="460" width="210" height="48" rx="8" class="dg-rect"></rect>
+              <text x="570" y="482" class="dg-node-title">Resend</text>
+              <text x="570" y="498" class="dg-node-sub">見積書・確認メール送信</text>
+
+              <path d="M210,45 C245,45 245,48 280,48" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+              <path d="M390,100 L390,76" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+              <text x="396" y="90" class="dg-label">呼び出し</text>
+
+              <path d="M210,115 C245,115 245,290 280,290" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+              <text x="216" y="200" class="dg-label">参考価格を提示</text>
+
+              <path d="M210,185 C245,185 245,305 280,305" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+              <text x="216" y="250" class="dg-label">ホワイトリスト照合</text>
+
+              <path d="M500,128 C530,128 530,40 560,40" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+              <text x="502" y="70" class="dg-label">POST /api/estimates/send</text>
+
+              <path d="M500,128 L530,128 L530,88 L560,88" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+
+              <path d="M500,208 C540,208 540,50 560,50" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+              <text x="502" y="235" class="dg-label">POST /api/hearings（更新）</text>
+
+              <path d="M500,208 L540,208 L540,136 L560,136" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+
+              <path d="M500,305 C530,305 530,126 560,126" class="dg-arrow-ai" marker-end="url(#arrow-gold)"></path>
+
+              <path d="M500,290 C530,290 530,252 560,252" class="dg-arrow-ai" marker-end="url(#arrow-gold)"></path>
+              <text x="502" y="345" class="dg-label-ai">全判定を case_events に記録</text>
+
+              <path d="M500,320 C530,320 530,300 560,300" class="dg-arrow-ai" marker-end="url(#arrow-gold)"></path>
+
+              <path d="M500,275 L545,275 L545,88 L560,88" class="dg-arrow-ai" marker-end="url(#arrow-gold)"></path>
+
+              <path d="M390,340 L390,460" class="dg-arrow-ai" marker-end="url(#arrow-gold)"></path>
+              <text x="398" y="430" class="dg-label-ai">API呼び出し</text>
+
+              <path d="M560,45 L530,45 L530,392 L500,392" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+              <path d="M560,194 L515,194 L515,404 L500,404" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+              <text x="505" y="440" class="dg-label">読み取りのみ（例：直近200件まで集計）</text>
+
+              <rect x="20" y="528" width="16" height="16" class="dg-rect"></rect>
+              <text x="42" y="540" class="dg-label">処理／保存</text>
+              <rect x="200" y="528" width="16" height="16" class="dg-rect-ai"></rect>
+              <text x="222" y="540" class="dg-label">AI関連の処理／書込み</text>
+              <rect x="420" y="528" width="16" height="16" class="dg-rect-store"></rect>
+              <text x="442" y="540" class="dg-label">D1テーブル</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- ⑤ ライフサイクル図 -->
+        <div class="diagram-block">
+          <h3 class="diagram-title">⑤ ライフサイクル図（案件ステータス）</h3>
+          <p class="diagram-desc"><code>cases.status</code> の状態遷移。<code>won</code>／<code>lost</code> は自動遷移せず、管理者が手動更新する。</p>
+          <div class="diagram-svg-wrap">
+            <svg viewBox="0 0 920 440" role="img" aria-label="案件ステータスのライフサイクル図">
+              <text x="5" y="100" class="dg-label">起点：見積送信</text>
+              <circle cx="25" cy="117" r="6" style="fill:var(--navy-soft)"></circle>
+              <path d="M31,117 L60,117" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+
+              <text x="175" y="16" text-anchor="middle" class="dg-label">起点：メール受信（分類成功）</text>
+              <circle cx="170" cy="30" r="6" style="fill:var(--navy-soft)"></circle>
+              <path d="M170,36 L170,60 L375,60 L375,90" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+
+              <text x="5" y="332" class="dg-label">起点：メール受信</text>
+              <text x="5" y="344" class="dg-label">（分類失敗）</text>
+              <circle cx="150" cy="320" r="6" style="fill:var(--navy-soft)"></circle>
+              <path d="M150,314 L150,242 L300,242" class="dg-arrow-faint" marker-end="url(#arrow-faint)"></path>
+
+              <rect x="60" y="90" width="150" height="54" rx="14" class="dg-rect"></rect>
+              <text x="70" y="112" class="dg-node-title">new</text>
+              <text x="70" y="130" class="dg-node-sub">見積もり送信直後</text>
+
+              <rect x="300" y="90" width="150" height="54" rx="14" class="dg-rect"></rect>
+              <text x="310" y="112" class="dg-node-title">hearing</text>
+              <text x="310" y="130" class="dg-node-sub">ヒアリング完了</text>
+
+              <rect x="540" y="90" width="150" height="54" rx="14" class="dg-rect"></rect>
+              <text x="550" y="112" class="dg-node-title">quoted</text>
+              <text x="550" y="130" class="dg-node-sub">正式見積書送付済み</text>
+
+              <rect x="780" y="50" width="120" height="44" rx="14" class="dg-rect"></rect>
+              <text x="790" y="70" class="dg-node-title">won</text>
+              <text x="790" y="86" class="dg-node-sub">受注</text>
+
+              <rect x="780" y="130" width="120" height="44" rx="14" class="dg-rect"></rect>
+              <text x="790" y="150" class="dg-node-title">lost</text>
+              <text x="790" y="166" class="dg-node-sub">失注</text>
+
+              <rect x="300" y="210" width="150" height="64" rx="14" class="dg-rect-ai"></rect>
+              <text x="310" y="230" class="dg-node-title">needs_info</text>
+              <text x="310" y="246" class="dg-node-sub">AIが金額判断不能／</text>
+              <text x="310" y="260" class="dg-node-sub">メール分類に失敗</text>
+
+              <path d="M210,117 L300,117" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+              <text x="225" y="110" class="dg-label">ヒアリング送信</text>
+
+              <path d="M450,117 L540,117" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+              <text x="465" y="110" class="dg-label">正式見積書送付</text>
+
+              <path d="M690,117 L730,117 L730,72 L780,72" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+              <path d="M690,117 L730,117 L730,152 L780,152" class="dg-arrow" marker-end="url(#arrow-navy)"></path>
+
+              <path d="M375,144 L375,210" class="dg-arrow-ai" marker-end="url(#arrow-gold)"></path>
+              <text x="382" y="180" class="dg-label-ai">AI/分類が不能</text>
+
+              <path d="M330,210 L330,144" class="dg-arrow-dashed" marker-end="url(#arrow-navy)"></path>
+              <text x="80" y="196" class="dg-label">情報補完後に</text>
+              <text x="80" y="208" class="dg-label">再ヒアリング</text>
+
+              <text x="460" y="410" text-anchor="middle" class="dg-label">※won／lost は管理者が admin.html で手動更新します（自動遷移なし）</text>
+            </svg>
+          </div>
+        </div>
+
+        <div class="diagram-legend">
+          <span><i class="lg-normal"></i>通常コンポーネント／処理</span>
+          <span><i class="lg-ai"></i>AI・自動化に関わる要素</span>
+          <span><i class="lg-ext"></i>外部サービス／要手動設定</span>
+        </div>
       </div>
     </div>
   </div>
