@@ -1768,6 +1768,46 @@ async function sendInboundAcknowledgementEmail(env: Bindings, origin: string, ca
   });
 }
 
+// 受信メールの本文をオーナー自身のメールアプリでも確認できるよう、社内通知メールを送る
+// （見積もり・ヒアリング等、他の受信経路には元々オーナー控えメールがあるが、
+// 問い合わせメール受信だけは通知が無かったため2026-08-30に追加）。
+async function sendInboundOwnerNotificationEmail(
+  env: Bindings,
+  origin: string,
+  caseRow: { id: string; email: string; customer_name: string },
+  subject: string | undefined,
+  bodyPreview: string,
+  category: string | null
+): Promise<void> {
+  if (!env.RESEND_API_KEY || !env.COMPANY_NOTIFY_EMAIL) return;
+  const fromAddr = env.MAIL_FROM || "quotes@example.com";
+  const catLabel = category ? CATEGORY_INFO[category]?.label || category : "未分類（要手動確認）";
+  const timelineUrl = `${origin}/admin/case-timeline.html?caseId=${encodeURIComponent(caseRow.id)}`;
+  const html = `
+    <div style="font-family:sans-serif;line-height:1.7;color:#1b2333;">
+      <p>問い合わせメールを受信しました。</p>
+      <table style="border-collapse:collapse;margin:16px 0;">
+        <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">受付番号</td><td>${escapeHtml(caseRow.id)}</td></tr>
+        <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">送信元</td><td>${escapeHtml(caseRow.email)}</td></tr>
+        <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">件名</td><td>${escapeHtml(subject || "(件名なし)")}</td></tr>
+        <tr><td style="padding:4px 12px 4px 0;color:#5c6b74;">分類</td><td>${escapeHtml(catLabel)}</td></tr>
+      </table>
+      <p style="white-space:pre-wrap;background:#f7f7f5;border:1px solid #e6e3db;border-radius:8px;padding:12px;">${escapeHtml(bodyPreview)}</p>
+      <p><a href="${timelineUrl}" style="color:#c9a227;font-weight:bold;">やり取りタイムラインで詳細を見る →</a></p>
+      <p style="margin-top:16px;color:#8a97a0;font-size:12px;">このメールに返信すると、送信者へ直接返信できます。</p>
+    </div>
+  `;
+  await sendEmailSafe(
+    env.RESEND_API_KEY,
+    fromAddr,
+    [env.COMPANY_NOTIFY_EMAIL],
+    `【問い合わせ受信】${caseRow.customer_name || caseRow.email}様（${catLabel}）`,
+    html,
+    "受信メールの社内通知に失敗しました（受信処理自体は継続）:",
+    caseRow.email
+  );
+}
+
 async function handleInboundEmail(message: ForwardableEmailMessage, env: Bindings): Promise<void> {
   const envelopeFrom = message.from;
 
@@ -1841,6 +1881,15 @@ async function handleInboundEmail(message: ForwardableEmailMessage, env: Binding
       payload: classification,
     });
   }
+
+  await sendInboundOwnerNotificationEmail(
+    env,
+    origin,
+    { id: caseId, email: envelopeFrom, customer_name: customerName },
+    parsed.subject,
+    bodyText,
+    classification?.category || null
+  );
 
   await sendInboundAcknowledgementEmail(env, origin, { id: caseId, email: envelopeFrom, customer_name: customerName });
 
