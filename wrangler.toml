@@ -36,5 +36,5 @@ database_id = "a789626d-c648-4234-b394-8f6f6a19f9a9"
 
 # 送信元アドレス・社内通知先アドレス（Resendで送信ドメイン認証済みのものを指定）
 [vars]
-MAIL_FROM = "t.yoshizaki.taka@gmail.com"
+MAIL_FROM = "quotes@aster-system.com"
 COMPANY_NOTIFY_EMAIL = "t.yoshizaki.taka@gmail.com"

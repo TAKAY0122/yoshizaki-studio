@@ -299,7 +299,7 @@ app.post("/api/hearings", async (c) => {
           </div>
         `;
         const customerSubject = `【Aster Systems】ヒアリング内容を受け付けました（受付番号：${finalCaseId}）`;
-        await sendEmailSafe(
+        const customerSent = await sendEmailSafe(
           c.env.RESEND_API_KEY,
           fromAddr,
           [answerEmail],
@@ -310,8 +310,10 @@ app.post("/api/hearings", async (c) => {
         await logCaseEvent(c.env.DB, finalCaseId, "outbound_email", {
           direction: "out",
           subject: customerSubject,
-          summary: `ヒアリング確認メールを${answerEmail}へ送信`,
-          payload: { to: answerEmail, category: body.category },
+          summary: customerSent
+            ? `ヒアリング確認メールを${answerEmail}へ送信`
+            : `ヒアリング確認メールの${answerEmail}への送信に失敗しました`,
+          payload: { to: answerEmail, category: body.category, success: customerSent },
         });
 
         // オーナーへの控えメール（顧客宛メールとは別送。相互のメールアドレスを見せないため）。
@@ -1126,6 +1128,7 @@ async function sendResendEmail(
 }
 
 // 顧客向けメールの送信失敗を握りつぶし、警告ログのみ残す（受付・登録自体は継続させるため）。
+// 戻り値で成否を返す（呼び出し元がcase_eventsに正しい結果を記録できるようにするため）。
 async function sendEmailSafe(
   apiKey: string,
   from: string,
@@ -1134,11 +1137,13 @@ async function sendEmailSafe(
   html: string,
   warnMessage: string,
   replyTo?: string
-): Promise<void> {
+): Promise<boolean> {
   try {
     await sendResendEmail(apiKey, from, to, subject, html, replyTo);
+    return true;
   } catch (err) {
     console.warn(warnMessage, err);
+    return false;
   }
 }
 
@@ -1246,12 +1251,13 @@ app.post("/api/estimates/send", async (c) => {
         </div>
       `;
 
+      const customerSubject = `【Aster Systems】御見積書のご案内（${catInfo.label}）`;
       const tasks = [
         sendEmailSafe(
           c.env.RESEND_API_KEY,
           fromAddr,
           [email],
-          `【Aster Systems】御見積書のご案内（${catInfo.label}）`,
+          customerSubject,
           customerHtml,
           "見積り確認メールの送信に失敗しました（見積もり自体の受付は継続）:"
         ),
@@ -1284,12 +1290,14 @@ app.post("/api/estimates/send", async (c) => {
         );
       }
 
-      await Promise.all(tasks);
+      const [customerSent] = await Promise.all(tasks);
       await logCaseEvent(c.env.DB, caseId, "outbound_email", {
         direction: "out",
-        subject: `【Aster Systems】御見積書のご案内（${catInfo.label}）`,
-        summary: `見積もりメールを${email}へ送信（概算 ${low}〜${high}）`,
-        payload: { to: email, category: decoded.cat, total },
+        subject: customerSubject,
+        summary: customerSent
+          ? `見積もりメールを${email}へ送信（概算 ${low}〜${high}）`
+          : `見積もりメールの${email}への送信に失敗しました`,
+        payload: { to: email, category: decoded.cat, total, success: customerSent },
       });
     })()
   );
@@ -1447,12 +1455,14 @@ async function sendClarificationEmail(
     </div>
   `;
   const subject = "【Aster Systems】ご依頼内容について確認をお願いいたします";
-  await sendEmailSafe(env.RESEND_API_KEY, fromAddr, [caseRow.email], subject, html, "確認依頼メールの送信に失敗しました:");
+  const sent = await sendEmailSafe(env.RESEND_API_KEY, fromAddr, [caseRow.email], subject, html, "確認依頼メールの送信に失敗しました:");
   await logCaseEvent(env.DB, caseRow.id, "outbound_email", {
     direction: "out",
     subject,
-    summary: `AIがプランを確定できなかったため確認依頼メールを${caseRow.email}へ自動送信`,
-    payload: { to: caseRow.email, unresolvedQuestions },
+    summary: sent
+      ? `AIがプランを確定できなかったため確認依頼メールを${caseRow.email}へ自動送信`
+      : `確認依頼メールの${caseRow.email}への送信に失敗しました`,
+    payload: { to: caseRow.email, unresolvedQuestions, success: sent },
   });
 
   if (env.COMPANY_NOTIFY_EMAIL) {
@@ -1759,12 +1769,14 @@ async function sendInboundAcknowledgementEmail(env: Bindings, origin: string, ca
     </div>
   `;
   const subject = "【Aster Systems】お問い合わせを受け付けました";
-  await sendEmailSafe(env.RESEND_API_KEY, fromAddr, [caseRow.email], subject, html, "受信メールへの自動返信に失敗しました:");
+  const sent = await sendEmailSafe(env.RESEND_API_KEY, fromAddr, [caseRow.email], subject, html, "受信メールへの自動返信に失敗しました:");
   await logCaseEvent(env.DB, caseRow.id, "outbound_email", {
     direction: "out",
     subject,
-    summary: `お問い合わせ受付メールを${caseRow.email}へ自動送信`,
-    payload: { to: caseRow.email },
+    summary: sent
+      ? `お問い合わせ受付メールを${caseRow.email}へ自動送信`
+      : `お問い合わせ受付メールの${caseRow.email}への送信に失敗しました`,
+    payload: { to: caseRow.email, success: sent },
   });
 }
 
@@ -1797,7 +1809,7 @@ async function sendInboundOwnerNotificationEmail(
       <p style="margin-top:16px;color:#8a97a0;font-size:12px;">このメールに返信すると、送信者へ直接返信できます。</p>
     </div>
   `;
-  await sendEmailSafe(
+  const sent = await sendEmailSafe(
     env.RESEND_API_KEY,
     fromAddr,
     [env.COMPANY_NOTIFY_EMAIL],
@@ -1806,6 +1818,14 @@ async function sendInboundOwnerNotificationEmail(
     "受信メールの社内通知に失敗しました（受信処理自体は継続）:",
     caseRow.email
   );
+  await logCaseEvent(env.DB, caseRow.id, "outbound_email", {
+    direction: "out",
+    subject: `【問い合わせ受信】${caseRow.customer_name || caseRow.email}様（${catLabel}）`,
+    summary: sent
+      ? `問い合わせ受信の社内通知メールを${env.COMPANY_NOTIFY_EMAIL}へ送信`
+      : `問い合わせ受信の社内通知メールの送信に失敗しました`,
+    payload: { to: env.COMPANY_NOTIFY_EMAIL, success: sent },
+  });
 }
 
 async function handleInboundEmail(message: ForwardableEmailMessage, env: Bindings): Promise<void> {
