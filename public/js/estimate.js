@@ -14,6 +14,10 @@ let BUNDLES = [];
 let DELIVERY_OPTIONS = [];
 let ACTIVE_CAMPAIGN = null;
 
+// 問い合わせメール受信を起点にこの画面へ誘導された場合、メールの案件と
+// このシミュレーターで作る見積もりを同一案件として紐付けるためのID。
+const inboundCaseId = new URLSearchParams(location.search).get("caseId");
+
 // 金額計算の本体（computeTotalPure）はサーバー（src/index.ts）と共有する
 // public/js/pricing-calc.js に切り出してある。ページ読み込み時に一度だけ
 // 読み込み、以後は同期的に呼び出す（loadDynamicData() が解決を待つため、
@@ -552,7 +556,7 @@ els.issueBtn.addEventListener("click", async () => {
     const res = await fetch("/api/estimates/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, name, email }),
+      body: JSON.stringify({ code, name, email, caseId: inboundCaseId || undefined }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);

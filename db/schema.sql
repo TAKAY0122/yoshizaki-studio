@@ -214,7 +214,7 @@ CREATE INDEX IF NOT EXISTS idx_case_events_case ON case_events(case_id);
 CREATE TABLE IF NOT EXISTS documents (
   id TEXT PRIMARY KEY,
   case_id TEXT NOT NULL REFERENCES cases(id),
-  doc_type TEXT NOT NULL,       -- 'requirements' | 'spec'
+  doc_type TEXT NOT NULL,       -- 'requirements' | 'spec' | 'detailed_design'
   version INTEGER NOT NULL DEFAULT 1,
   content_json TEXT NOT NULL,   -- [{ "heading": "...", "body": "..." }, ...]
   generated_by TEXT NOT NULL DEFAULT 'ai',  -- 'ai' | 'admin'

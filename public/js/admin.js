@@ -762,6 +762,11 @@ document.getElementById("modal-open-spec")?.addEventListener("click", () => {
   window.open(`/admin/spec.html?caseId=${encodeURIComponent(state.currentCaseId)}`, "_blank");
 });
 
+document.getElementById("modal-open-detailed-design")?.addEventListener("click", () => {
+  if (!state.currentCaseId) return;
+  window.open(`/admin/detailed-design.html?caseId=${encodeURIComponent(state.currentCaseId)}`, "_blank");
+});
+
 document.getElementById("modal-open-timeline")?.addEventListener("click", () => {
   if (!state.currentCaseId) return;
   window.open(`/admin/case-timeline.html?caseId=${encodeURIComponent(state.currentCaseId)}`, "_blank");

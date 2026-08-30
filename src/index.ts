@@ -5,7 +5,7 @@ import type { Context, Next } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { CATEGORY_INFO, CATEGORY_SUMMARY } from "./category-info";
 import { callClaude, extractJson } from "./claude-client";
-import { runAiPipelinePreview, generateDocument, selectPlanAndAddons, classifyInquiry, extractHearingFields } from "./ai-pipeline";
+import { runAiPipelinePreview, generateDocument, selectPlanAndAddons, classifyInquiry } from "./ai-pipeline";
 import PostalMime from "postal-mime";
 import { CATEGORIES as SERVER_CATEGORIES, COMMON_ADDONS as SERVER_COMMON_ADDONS } from "./pricing-catalog";
 
@@ -934,7 +934,8 @@ app.post("/api/admin/cases/:id/ai/run-pipeline", requireAuth, async (c) => {
 // デコード結果「だけ」を根拠にAIへ文章化させる。生成のたびに新しい
 // versionとしてINSERTし、表示・取得は常に最新版を返す。
 // ============================================================
-const DOCUMENT_TYPES = new Set(["requirements", "spec"]);
+const DOCUMENT_TYPES = new Set(["requirements", "spec", "detailed_design"]);
+const DOCUMENT_TYPE_LABELS: Record<string, string> = { requirements: "要件定義書", spec: "仕様書", detailed_design: "詳細設計書" };
 
 function resolveEstimateLabels(categoryId: string | null, decoded: any): { planLabel: string | null; addonLabels: string[] } {
   const cat = categoryId ? SERVER_CATEGORIES.find((c) => c.id === categoryId) : null;
@@ -954,7 +955,7 @@ function resolveEstimateLabels(categoryId: string | null, decoded: any): { planL
 async function generateAndSaveDocument(
   env: Bindings,
   caseId: string,
-  docType: "requirements" | "spec"
+  docType: "requirements" | "spec" | "detailed_design"
 ): Promise<{ id: string; version: number; sections: Awaited<ReturnType<typeof generateDocument>>; createdAt: string } | null> {
   const caseRow: any = await env.DB.prepare("SELECT * FROM cases WHERE id = ?").bind(caseId).first();
   if (!caseRow) return null;
@@ -997,7 +998,7 @@ async function generateAndSaveDocument(
     .run();
 
   await logCaseEvent(env.DB, caseId, "ai_stage", {
-    summary: `${docType === "requirements" ? "要件定義書" : "仕様書"}の下書きを生成（version ${version}）`,
+    summary: `${DOCUMENT_TYPE_LABELS[docType] || docType}の下書きを生成（version ${version}）`,
     payload: { docType, version, sectionCount: sections.length },
   });
 
@@ -1009,7 +1010,7 @@ app.post("/api/admin/cases/:id/documents/generate", requireAuth, async (c) => {
   const id = c.req.param("id")!;
   const body = await c.req.json().catch(() => null);
   const docType = body?.docType;
-  if (!DOCUMENT_TYPES.has(docType)) return c.json({ error: "docType は 'requirements' または 'spec' を指定してください" }, 400);
+  if (!DOCUMENT_TYPES.has(docType)) return c.json({ error: "docType は 'requirements'・'spec'・'detailed_design' のいずれかを指定してください" }, 400);
 
   const caseRow = await c.env.DB.prepare("SELECT id FROM cases WHERE id = ?").bind(id).first();
   if (!caseRow) return c.json({ error: "案件が見つかりません" }, 404);
@@ -1030,7 +1031,7 @@ app.post("/api/admin/cases/:id/documents/generate", requireAuth, async (c) => {
 app.get("/api/admin/cases/:id/documents/:docType", requireAuth, async (c) => {
   const id = c.req.param("id");
   const docType = c.req.param("docType") || "";
-  if (!DOCUMENT_TYPES.has(docType)) return c.json({ error: "docType は 'requirements' または 'spec' を指定してください" }, 400);
+  if (!DOCUMENT_TYPES.has(docType)) return c.json({ error: "docType は 'requirements'・'spec'・'detailed_design' のいずれかを指定してください" }, 400);
 
   const row: any = await c.env.DB.prepare(
     "SELECT * FROM documents WHERE case_id = ? AND doc_type = ? ORDER BY version DESC LIMIT 1"
@@ -1198,14 +1199,43 @@ app.post("/api/estimates/send", async (c) => {
   // この時点で案件（case）を作成し、ヒアリング未着手でも管理者ダッシュボードに
   // 「新規受付」として表示されるようにする。ヒアリングシート送信時にはこの
   // caseId を引き継いで更新する（重複した案件が作られないようにするため）。
-  const caseId = newCaseId("C");
+  //
+  // 問い合わせメール受信（handleInboundEmail）で先に案件が作られている場合は、
+  // その案件をそのまま更新する（メール起点の案件とシミュレーター起点の案件が
+  // 別々の重複案件にならないようにするため、2026-08-30追加）。
+  let caseId: string | null = null;
+  let existingCaseEmail: string | null = null;
+  if (typeof body?.caseId === "string" && body.caseId.length > 0 && body.caseId.length <= 100) {
+    const existing: any = await c.env.DB.prepare("SELECT id, email, status FROM cases WHERE id = ?").bind(body.caseId).first();
+    // ヒアリング以降に進んでいる案件（hearing/quoted/won/lost）は上書き対象にしない。
+    // 古いメールのリンクを踏み直した・caseIdを知った第三者が叩いた等の場合に、
+    // 既に確定した金額・カテゴリが黙って書き換わってしまうのを防ぐため
+    // （見積金額を絶対に壊さないという最優先事項に抵触するリスクのため2026-08-30追加）。
+    if (existing && (existing.status === "new" || existing.status === "needs_info")) {
+      caseId = existing.id;
+      existingCaseEmail = existing.email;
+    }
+  }
+
   const now = new Date().toISOString();
-  await c.env.DB.prepare(
-    `INSERT INTO cases (id, category, status, customer_name, email, estimate_code, estimate_total, created_at, updated_at)
-     VALUES (?, ?, 'new', ?, ?, ?, ?, ?, ?)`
-  )
-    .bind(caseId, decoded.cat, name, email, code, decoded.total || 0, now, now)
-    .run();
+  if (caseId) {
+    // 既にメールアドレスが設定されている場合は上書きしない（第三者がcaseIdを
+    // 知ってこのAPIを直接叩き、送付先メールアドレスを乗っ取れてしまうのを防ぐため）。
+    const emailToSet = existingCaseEmail || email;
+    await c.env.DB.prepare(
+      `UPDATE cases SET category = ?, status = 'new', customer_name = ?, email = ?, estimate_code = ?, estimate_total = ?, updated_at = ? WHERE id = ?`
+    )
+      .bind(decoded.cat, name, emailToSet, code, decoded.total || 0, now, caseId)
+      .run();
+  } else {
+    caseId = newCaseId("C");
+    await c.env.DB.prepare(
+      `INSERT INTO cases (id, category, status, customer_name, email, estimate_code, estimate_total, created_at, updated_at)
+       VALUES (?, ?, 'new', ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(caseId, decoded.cat, name, email, code, decoded.total || 0, now, now)
+      .run();
+  }
   await c.env.DB.prepare(
     `INSERT INTO estimates (id, case_id, items, total_amount, created_at) VALUES (?, ?, ?, ?, ?)`
   )
@@ -1573,14 +1603,14 @@ async function runAutoPipeline(env: Bindings, origin: string, caseId: string): P
     });
   }
 
-  // 資料生成（要件定義書・仕様書、社内専用）。失敗しても見積書の自動送信は継続する。
-  for (const docType of ["requirements", "spec"] as const) {
+  // 資料生成（要件定義書・仕様書・詳細設計書、社内専用）。失敗しても見積書の自動送信は継続する。
+  for (const docType of ["requirements", "spec", "detailed_design"] as const) {
     try {
       await generateAndSaveDocument(env, caseId, docType);
     } catch (err: any) {
       console.warn(`自動パイプライン：${docType}の生成に失敗しました:`, err);
       await logCaseEvent(env.DB, caseId, "ai_stage", {
-        summary: `自動パイプライン：${docType === "requirements" ? "要件定義書" : "仕様書"}の生成に失敗しました（${err.message || err}）`,
+        summary: `自動パイプライン：${DOCUMENT_TYPE_LABELS[docType] || docType}の生成に失敗しました（${err.message || err}）`,
       });
     }
   }
@@ -1749,19 +1779,26 @@ function stripHtmlTags(html: string): string {
     .trim();
 }
 
-// 受信直後に送る一次受付メール（分類・見積もり内容には一切触れない、ごく短い確認メール）。
+// 受信直後に送る一次受付メール。見積もりシミュレーター→ヒアリングシートという
+// 通常の受付フローへお客様を案内する（2026-08-30、メール本文からの自動抽出をやめ、
+// サイト経由の通常フローに合流させる方針に変更）。
 async function sendInboundAcknowledgementEmail(env: Bindings, origin: string, caseRow: any): Promise<void> {
   if (!env.RESEND_API_KEY || !caseRow.email || !EMAIL_PATTERN.test(caseRow.email)) return;
   const fromAddr = env.MAIL_FROM || "quotes@example.com";
   const emailSettings = await getEmailSettings(env.DB);
   const customerName = caseRow.customer_name || "お客様";
   const mypageUrl = `${origin}/customer/mypage.html`;
+  // このcaseIdを引き継ぐことで、シミュレーターで見積もりを作成した際に
+  // 別の新規案件にならず、同一案件として更新される（/api/estimates/send側で対応）。
+  const estimateUrl = `${origin}/customer/estimate.html?caseId=${encodeURIComponent(caseRow.id)}`;
 
   const html = `
     <div style="font-family:sans-serif;line-height:1.7;color:#1b2333;">
       <p>${escapeHtml(customerName)} 様</p>
-      <p>この度はAster Systemsへお問い合わせいただき、誠にありがとうございます。<br />
-      内容を確認のうえ、担当者より改めてご連絡させていただきます。</p>
+      <p>この度はAster Systemsへお問い合わせいただき、誠にありがとうございます。</p>
+      <p>より早く正式なお見積もりをお受け取りいただくため、以下の見積もりシミュレーターから概算金額のご確認とヒアリングシートのご記入をお願いしております。</p>
+      <p><a href="${estimateUrl}" style="display:inline-block;background:#c9a227;color:#1b2333;padding:10px 20px;border-radius:999px;text-decoration:none;font-weight:bold;">見積もりシミュレーターへ進む →</a></p>
+      <p>お急ぎでない場合や、まずは内容だけお伝えいただく場合は、このままお待ちいただいても担当者より改めてご連絡させていただきます。</p>
       ${buildMypageNoticeHtml(caseRow.id, mypageUrl)}
       ${buildCustomNoticeHtml(emailSettings.custom_notice)}
       ${buildSignatureHtml(emailSettings)}
@@ -1878,10 +1915,13 @@ async function handleInboundEmail(message: ForwardableEmailMessage, env: Binding
   const now = new Date().toISOString();
   const caseId = newId();
 
+  // 見積もりシミュレーター起点の案件と同じ「new」から始め、以降は
+  // シミュレーター→ヒアリングという通常フローに合流させる
+  // （2026-08-30、メール本文からの自動抽出をやめた方針変更に合わせて変更）。
   await env.DB.prepare(
     `INSERT INTO cases (id, category, status, customer_name, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
   )
-    .bind(caseId, category, classification?.category ? "hearing" : "needs_info", customerName, envelopeFrom, now, now)
+    .bind(caseId, category, classification?.category ? "new" : "needs_info", customerName, envelopeFrom, now, now)
     .run();
 
   if (messageId) {
@@ -1913,39 +1953,10 @@ async function handleInboundEmail(message: ForwardableEmailMessage, env: Binding
 
   await sendInboundAcknowledgementEmail(env, origin, { id: caseId, email: envelopeFrom, customer_name: customerName });
 
-  if (!classification?.category) {
-    // カテゴリを判定できなかった場合はここで終了し、案件一覧から人が手動対応する。
-    return;
-  }
-
-  if (!env.ANTHROPIC_API_KEY) return;
-
-  try {
-    const extraction = await extractHearingFields(env.ANTHROPIC_API_KEY, classification.category, bodyText);
-    await env.DB.prepare(
-      `INSERT INTO hearings (id, case_id, category, answers, created_at) VALUES (?, ?, ?, ?, ?)`
-    )
-      .bind(newId(), caseId, classification.category, JSON.stringify(extraction.answers), new Date().toISOString())
-      .run();
-    await logCaseEvent(env.DB, caseId, "ai_stage", {
-      summary: `受信メールからヒアリング項目を抽出（${extraction.coveredFieldIds.length}件、除外${extraction.droppedFieldIds.length}件）`,
-      payload: extraction,
-    });
-  } catch (err: any) {
-    console.warn("受信メールからのヒアリング項目抽出に失敗しました:", err);
-    await logCaseEvent(env.DB, caseId, "ai_stage", {
-      summary: `ヒアリング項目抽出に失敗しました（${err.message || err}）`,
-    });
-    return;
-  }
-
-  if (await isAutoPipelineEnabled(env.DB)) {
-    try {
-      await runAutoPipeline(env, origin, caseId);
-    } catch (err) {
-      console.warn("受信メール起点の自動パイプラインに失敗しました:", err);
-    }
-  }
+  // 以降はお客様が見積もりシミュレーター→ヒアリングシートへ進むのを待つ
+  // （メール本文からのヒアリング項目自動抽出・即時の全自動パイプライン起動は
+  // 2026-08-30に廃止。ヒアリングシート送信時に/api/hearingsが従来通り
+  // 全自動パイプラインを起動する）。
 }
 
 export default {
