@@ -11,23 +11,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="/css/insights.css" />
-<style>
-  .timeline { display: flex; flex-direction: column; gap: 14px; margin-top: 20px; }
-  .timeline-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 16px 18px; }
-  .timeline-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
-  .timeline-badge { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em; padding: 3px 10px; border-radius: var(--radius-pill); }
-  .timeline-badge.out { background: #e8f3ec; color: #1e6b3f; }
-  .timeline-badge.in { background: #eaf1fb; color: #1c4f8f; }
-  .timeline-badge.ai { background: #fdf3e0; color: #8a6a10; }
-  .timeline-badge.status { background: #f0eefc; color: #4b3a94; }
-  .timeline-time { font-size: 12px; color: var(--ink-faint); margin-left: auto; }
-  .timeline-subject { font-weight: 700; margin: 4px 0 2px; }
-  .timeline-summary { color: var(--ink-soft); font-size: var(--step--1); }
-  .timeline-payload { margin-top: 8px; }
-  .timeline-payload summary { cursor: pointer; font-size: 12px; color: var(--ink-faint); }
-  .timeline-payload pre { white-space: pre-wrap; word-break: break-word; font-size: 11px; background: var(--bg); padding: 10px; border-radius: 8px; margin-top: 6px; max-height: 300px; overflow: auto; }
-  .empty-row td { text-align: center; color: var(--ink-faint); padding: 30px 0; }
-</style>
 </head>
 <body>
 
@@ -51,7 +34,7 @@
     <div class="dash-wrap">
       <p class="tab-help">受付番号：<strong id="case-id-label"></strong>　この案件に関する送受信メール・AI判定を時系列ですべて表示します（メール送信の成否に関わらず、送信を試みた記録として残ります）。</p>
       <div class="timeline" id="timeline-list"></div>
-      <p class="empty-row" id="timeline-empty" style="display:none">まだ記録がありません。</p>
+      <p class="timeline-empty" id="timeline-empty" style="display:none">まだ記録がありません。</p>
     </div>
   </div>
 

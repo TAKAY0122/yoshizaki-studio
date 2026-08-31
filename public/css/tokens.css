@@ -42,6 +42,15 @@
   --danger-soft: #fbeae7;
   --success: #3c8c5a;
   --success-soft: #e7f3ea;
+  --warning: #96690f;
+  --warning-soft: #fdf0d4;
+  --info: #2f5fb0;
+  --info-soft: #e9eefb;
+
+  --header-bg: rgba(27, 35, 51, 0.96);
+  --header-ink: #f3f1ea;
+  --header-ink-soft: #cfd4e0;
+  --header-border: rgba(255, 255, 255, 0.12);
 
   --font-display: "Noto Sans JP", "Hiragino Sans", sans-serif;
   --font-body: "Noto Sans JP", "Hiragino Sans", sans-serif;
